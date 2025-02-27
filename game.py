@@ -1,5 +1,10 @@
 import random
+import logging
 from cards import load_black_cards, load_white_cards
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
 
 class Game:
     def __init__(self):
@@ -9,7 +14,8 @@ class Game:
         self.current_black_card = None
         self.played_cards = {}  # player_id: card
         self.round_in_progress = False
-        
+        logger.debug(f"Game initialized with {len(self.black_cards)} black cards and {len(self.white_cards)} white cards")
+
     def add_player(self, player_id, player_name):
         if player_id not in self.players:
             self.players[player_id] = {
@@ -19,11 +25,11 @@ class Game:
             }
             return True
         return False
-    
+
     def draw_cards(self, player_id):
         if player_id not in self.players:
             return None
-        
+
         player = self.players[player_id]
         while len(player['cards']) < 7:
             if not self.white_cards:
@@ -31,50 +37,55 @@ class Game:
             card = random.choice(self.white_cards)
             self.white_cards.remove(card)
             player['cards'].append(card)
-        
+
         return player['cards']
-    
+
     def play_card(self, player_id, card_index):
         if player_id not in self.players:
             return False
-        
+
         player = self.players[player_id]
         if card_index < 0 or card_index >= len(player['cards']):
             return False
-        
+
         card = player['cards'].pop(card_index)
         self.played_cards[player_id] = card
         return True
-    
+
     def start_round(self):
         if not self.black_cards:
+            logger.debug("No black cards remaining in deck")
             return None
-        
+
         self.current_black_card = random.choice(self.black_cards)
         self.black_cards.remove(self.current_black_card)
         self.played_cards = {}
         self.round_in_progress = True
+
+        logger.debug(f"Drew black card: {self.current_black_card}")
+        logger.debug(f"Remaining black cards: {len(self.black_cards)}")
         return self.current_black_card
+
 
 class GameManager:
     def __init__(self):
         self.games = {}  # channel_id: Game
-        
+
     def create_game(self, channel_id):
         self.games[channel_id] = Game()
-        
+
     def get_game(self, channel_id):
         return self.games.get(channel_id)
-        
+
     def is_game_active(self, channel_id):
         return channel_id in self.games
-        
+
     def end_game(self, channel_id):
         if channel_id in self.games:
             del self.games[channel_id]
             return True
         return False
-        
+
     def add_player(self, channel_id, player_id, player_name):
         game = self.get_game(channel_id)
         if game:

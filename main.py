@@ -164,20 +164,26 @@ async def show_rules(ctx):
 @bot.command(name='prompt')
 async def draw_prompt(ctx):
     """Draw a black prompt card for the current round"""
+    logger.debug(f"Prompt command requested by {ctx.author.name}")
+
     # Verify user is still in voice channel
     if not ctx.author.voice:
+        logger.debug(f"User {ctx.author.name} not in voice channel")
         await ctx.send("You need to be in a voice channel to play!")
         return
 
     game = game_manager.get_game(ctx.channel.id)
     if not game:
+        logger.debug(f"No active game in channel {ctx.channel.name}")
         await ctx.send("No game is currently active!")
         return
 
     black_card = game.start_round()
     if black_card:
+        logger.info(f"Drew black card in channel {ctx.channel.name}: {black_card}")
         await ctx.send(f"📜 **Black Card**: {black_card}")
     else:
+        logger.warning(f"No black cards available in channel {ctx.channel.name}")
         await ctx.send("No more black cards available!")
 
 
