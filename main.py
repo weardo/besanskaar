@@ -213,11 +213,13 @@ async def end_game(ctx):
         return
 
     # Show final scores and winner
-    winner = game.get_winner()
     scores = game.get_scores()
     scores_text = "\n".join([f"{info['name']}: {info['score']} points" for info in scores.values()])
+    await ctx.send(f"**Final Scores**:\n{scores_text}")
 
-    await ctx.send(f"**Final Scores**:\n{scores_text}\n\n🎉 **WINNER**: {winner['name']} with {winner['score']} points! 🎉")
+    winner = game.get_winner()
+    if winner:
+        await ctx.send(f"\n🎉 **WINNER**: {winner['name']} with {winner['score']} points! 🎉")
 
     if game_manager.end_game(ctx.channel.id):
         await ctx.send("Game ended! Thanks for playing!")

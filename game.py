@@ -117,12 +117,17 @@ class Game:
         """Get the player with the highest score"""
         if not self.players:
             return None
-        winner_id = max(self.players.items(), key=lambda x: x[1]['score'])[0]
-        return {
-            'id': winner_id,
-            'name': self.players[winner_id]['name'],
-            'score': self.players[winner_id]['score']
-        }
+
+        # Handle tie by selecting the first player with highest score
+        max_score = max(player['score'] for player in self.players.values())
+        for player_id, player in self.players.items():
+            if player['score'] == max_score:
+                return {
+                    'id': player_id,
+                    'name': player['name'],
+                    'score': max_score
+                }
+        return None
 
 
 class GameManager:
