@@ -1,3 +1,17 @@
+"""
+Required Bot Permissions:
+- View Channels (for seeing text and voice channels)
+- Send Messages (for responding to commands)
+- Send Messages in Threads (for thread discussions)
+- Read Message History (for tracking game progress)
+- Connect (for voice channel verification)
+- View Voice Channel Members (for player tracking)
+
+Permission Integer: 103079488
+Invite Link Format:
+https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=103079488&scope=bot%20applications.commands
+"""
+
 import os
 import discord
 from discord.ext import commands
