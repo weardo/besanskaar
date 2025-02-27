@@ -23,12 +23,12 @@ from database import Database
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize bot with required intents and both command prefixes
+# Initialize bot with required intents and command prefix
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True  # Privileged intent
 intents.voice_states = True  # Privileged intent
-bot = commands.Bot(command_prefix=['!cah ', '.'], intents=intents)
+bot = commands.Bot(command_prefix=['.cah ', '!cah '], intents=intents)
 
 # Initialize game manager and database
 game_manager = GameManager()
@@ -38,12 +38,17 @@ db = Database()
 async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
     try:
+        # Sync commands in background to avoid blocking
         synced = await bot.tree.sync()
         logger.info(f"Synced {len(synced)} command(s)")
     except Exception as e:
         logger.error(f"Failed to sync commands: {e}")
 
-@bot.command(name='start', aliases=['st'])
+    # Log startup status
+    logger.info("Bot is ready to play Cards Against Humanity!")
+    logger.info("Use '.cah s' to start a new game or '.cah r' to see all commands")
+
+@bot.command(name='s', help='Start a new game')
 async def start_game(ctx):
     """Start a new game of Cards Against Humanity"""
     if not ctx.author.voice:
@@ -55,10 +60,10 @@ async def start_game(ctx):
         return
 
     game_manager.create_game(ctx.channel.id)
-    await ctx.send("New game started! Players in the voice channel can join using `.jo` or `!cah join`")
+    await ctx.send("New game started! Players in the voice channel can join using `.cah j`")
     db.log_game_start(ctx.channel.id, ctx.author.id)
 
-@bot.command(name='join', aliases=['jo'])
+@bot.command(name='j', help='Join the current game')
 async def join_game(ctx):
     """Join the current game"""
     if not ctx.author.voice:
@@ -66,7 +71,7 @@ async def join_game(ctx):
         return
 
     if not game_manager.is_game_active(ctx.channel.id):
-        await ctx.send("No game is currently active. Start one with `.st` or `!cah start`")
+        await ctx.send("No game is currently active. Start one with `.cah s`")
         return
 
     success = game_manager.add_player(ctx.channel.id, ctx.author.id, ctx.author.name)
@@ -76,7 +81,7 @@ async def join_game(ctx):
     else:
         await ctx.send("You're already in the game!")
 
-@bot.command(name='draw', aliases=['d'])
+@bot.command(name='d', help='Draw white cards')
 async def draw_cards(ctx):
     """Draw your hand of white cards"""
     if not ctx.author.voice:
@@ -96,26 +101,39 @@ async def draw_cards(ctx):
     else:
         await ctx.send("You're not in the game or already have cards!")
 
-@bot.command(name='play', aliases=['pl'])
+@bot.command(name='play', help='Play a card from your hand')
 async def play_card(ctx, card_number: int):
     """Play a card from your hand"""
-    if not ctx.author.voice:
-        await ctx.send("You need to stay in the voice channel to play!")
-        return
+    try:
+        if isinstance(card_number, str):
+            card_number = int(card_number)
 
-    game = game_manager.get_game(ctx.channel.id)
-    if not game:
-        await ctx.send("No game is currently active!")
-        return
+        if not ctx.author.voice:
+            logger.debug(f"User {ctx.author.name} not in voice channel")
+            await ctx.send("You need to stay in the voice channel to play!")
+            return
 
-    success = game.play_card(ctx.author.id, card_number - 1)
-    if success:
-        await ctx.send(f"{ctx.author.name} has played their card!")
-        db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
-    else:
-        await ctx.send("Invalid card number or it's not your turn!")
+        game = game_manager.get_game(ctx.channel.id)
+        if not game:
+            logger.debug(f"No active game in channel {ctx.channel.name}")
+            await ctx.send("No game is currently active!")
+            return
 
-@bot.command(name='cards', aliases=['c'])
+        success = game.play_card(ctx.author.id, card_number - 1)
+        if success:
+            await ctx.send(f"{ctx.author.name} has played their card!")
+            db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
+        else:
+            logger.debug(f"Failed to play card {card_number} for user {ctx.author.name}")
+            await ctx.send("Invalid card number or it's not your turn!")
+    except ValueError:
+        logger.error(f"Invalid card number format: {card_number}")
+        await ctx.send("Please provide a valid card number (e.g., `.cah play 1`)")
+    except Exception as e:
+        logger.error(f"Error in play_card command: {str(e)}")
+        await ctx.send("An error occurred while playing your card. Please try again.")
+
+@bot.command(name='show', help='Show all played cards')
 async def show_played_cards(ctx):
     """Show all played cards for selection"""
     if not ctx.author.voice:
@@ -140,49 +158,61 @@ async def show_played_cards(ctx):
 
     cards_text = "\n".join([f"{i+1}. {card_info['card']} (played by {card_info['player_name']})"
                            for i, (_, card_info) in enumerate(played_cards.items())])
-    await ctx.send(f"**Played Cards**:\n{cards_text}\n\nUse `!cah select <number>` or `.w <number>` to choose the winning card!")
+    await ctx.send(f"**Played Cards**:\n{cards_text}\n\nUse `.cah win <number>` to choose the winning card!")
 
-@bot.command(name='select', aliases=['w'])
+@bot.command(name='win', help='Select winning card')
 async def select_winner(ctx, card_number: int):
     """Select the winning card for the round"""
-    if not ctx.author.voice:
-        logger.debug(f"User {ctx.author.name} not in voice channel")
-        await ctx.send("You need to be in a voice channel to play!")
-        return
+    try:
+        if isinstance(card_number, str):
+            card_number = int(card_number)
 
-    game = game_manager.get_game(ctx.channel.id)
-    if not game:
-        logger.debug(f"No active game in channel {ctx.channel.name}")
-        await ctx.send("No game is currently active!")
-        return
+        if not ctx.author.voice:
+            logger.debug(f"User {ctx.author.name} not in voice channel")
+            await ctx.send("You need to be in a voice channel to play!")
+            return
 
-    if ctx.author.id != game.current_prompt_drawer:
-        await ctx.send("Only the current prompt drawer can select the winning card!")
-        return
+        game = game_manager.get_game(ctx.channel.id)
+        if not game:
+            logger.debug(f"No active game in channel {ctx.channel.name}")
+            await ctx.send("No game is currently active!")
+            return
 
-    played_cards = list(game.get_played_cards().items())
-    if not played_cards or card_number < 1 or card_number > len(played_cards):
-        await ctx.send("Invalid card number!")
-        return
+        if ctx.author.id != game.current_prompt_drawer:
+            await ctx.send("Only the current prompt drawer can select the winning card!")
+            return
 
-    winning_player_id = played_cards[card_number - 1][0]
-    winning_card = played_cards[card_number - 1][1]
+        played_cards = list(game.get_played_cards().items())
+        if not played_cards or card_number < 1 or card_number > len(played_cards):
+            logger.debug(f"Invalid card selection: {card_number}, available cards: {len(played_cards)}")
+            await ctx.send("Invalid card number!")
+            return
 
-    if game.select_winner(winning_player_id):
-        await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+        winning_player_id = played_cards[card_number - 1][0]
+        winning_card = played_cards[card_number - 1][1]
 
-        # Show current scores
-        scores = game.get_scores()
-        scores_text = "\n".join([f"{info['name']}: {info['score']} points" for info in scores.values()])
-        await ctx.send(f"**Current Scores**:\n{scores_text}")
+        if game.select_winner(winning_player_id):
+            await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
 
-        # Announce next prompt drawer
-        next_drawer = game.players[game.current_prompt_drawer]['name']
-        await ctx.send(f"\n👉 {next_drawer} will draw the next black card!")
-    else:
-        await ctx.send("Error selecting winner!")
+            # Show current scores
+            scores = game.get_scores()
+            scores_text = "\n".join([f"{info['name']}: {info['score']} points" for info in scores.values()])
+            await ctx.send(f"**Current Scores**:\n{scores_text}")
 
-@bot.command(name='scores', aliases=['sc'])
+            # Announce next prompt drawer
+            next_drawer = game.players[game.current_prompt_drawer]['name']
+            await ctx.send(f"\n👉 {next_drawer} will draw the next black card!")
+        else:
+            logger.error(f"Failed to select winner for card {card_number}")
+            await ctx.send("Error selecting winner!")
+    except ValueError:
+        logger.error(f"Invalid card number format: {card_number}")
+        await ctx.send("Please provide a valid card number (e.g., `.cah win 1`)")
+    except Exception as e:
+        logger.error(f"Error in select_winner command: {str(e)}")
+        await ctx.send("An error occurred while selecting the winner. Please try again.")
+
+@bot.command(name='score', help='Show current scores')
 async def show_scores(ctx):
     """Show current game scores"""
     game = game_manager.get_game(ctx.channel.id)
@@ -194,7 +224,7 @@ async def show_scores(ctx):
     scores_text = "\n".join([f"{info['name']}: {info['score']} points" for info in scores.values()])
     await ctx.send(f"**Current Scores**:\n{scores_text}")
 
-@bot.command(name='end', aliases=['en'])
+@bot.command(name='end', help='End the current game')
 async def end_game(ctx):
     """End the current game"""
     game = game_manager.get_game(ctx.channel.id)
@@ -217,7 +247,7 @@ async def end_game(ctx):
     else:
         await ctx.send("Error ending game!")
 
-@bot.command(name='rules', aliases=['ru'])
+@bot.command(name='r', help='Show game rules and commands')
 async def show_rules(ctx):
     """Show game rules and commands"""
     rules_text = """
@@ -226,43 +256,30 @@ async def show_rules(ctx):
 
 **How to Play:**
 1. Join a voice channel
-2. Use `.st` or `!cah start` to start a new game
-3. Others in the voice channel use `.jo` or `!cah join` to join
-4. Each round, one player draws a black card using `.p` or `!cah prompt`
-5. Other players use `.d` or `!cah draw` to get their white cards (sent via DM)
-6. Players use `.pl <number>` or `!cah play <number>` to play a card
-7. The prompt drawer uses `.c` or `!cah cards` to see played cards
-8. The prompt drawer selects winner with `.w <number>` or `!cah select <number>`
+2. Use `.cah s` to start a new game
+3. Others in the voice channel use `.cah j` to join
+4. Each round:
+   - One player uses `.cah p` to draw a black card
+   - Other players use `.cah d` to get their white cards (via DM)
+   - Players play cards with `.cah play <number>`
+   - Prompt drawer uses `.cah show` to see cards
+   - Prompt drawer picks winner with `.cah win <number>`
 
-**Single-Letter Commands:**
-`.p` - Draw a black card
-`.d` - Draw white cards
-`.c` - Show played cards
-`.w <number>` - Select winning card
-
-**Other Short Commands:**
-`.st` - Start game
-`.jo` - Join game
-`.pl <number>` - Play card
-`.sc` - Show scores
-`.en` - End game
-`.ru` - Show rules
-
-**Full Commands:**
-`!cah start` - Start a new game
-`!cah join` - Join the current game
-`!cah prompt` - Draw a black card
-`!cah draw` - Draw your cards
-`!cah play <number>` - Play a card
-`!cah cards` - Show played cards
-`!cah select <number>` - Select winner
-`!cah scores` - Show scores
-`!cah end` - End game
-`!cah rules` - Show this help
+**Commands:**
+`.cah s` - Start game
+`.cah j` - Join game
+`.cah p` - Draw black card prompt
+`.cah d` - Draw white cards
+`.cah play <number>` - Play a card
+`.cah show` - Show played cards
+`.cah win <number>` - Select winner
+`.cah score` - Show scores
+`.cah end` - End game
+`.cah r` - Show this help
     """
     await ctx.send(rules_text)
 
-@bot.command(name='prompt', aliases=['p'])
+@bot.command(name='p', help='Draw a black card prompt')
 async def draw_prompt(ctx):
     """Draw a black prompt card for the current round"""
     logger.debug(f"Prompt command requested by {ctx.author.name}")
@@ -291,5 +308,26 @@ token = os.getenv('DISCORD_TOKEN')
 if not token:
     logger.error("No Discord token found!")
     raise ValueError("Please set the DISCORD_TOKEN environment variable")
+
+@bot.event
+async def on_command_error(ctx, error):
+    """Handle command errors with helpful messages"""
+    if isinstance(error, commands.CommandNotFound):
+        # Suggest help command for unknown commands
+        command = ctx.message.content.split()[0] if ctx.message.content else 'Unknown'
+        logger.warning(f"User {ctx.author.name} attempted to use unknown command: {command}")
+        await ctx.send(f"Command not found. Use `.cah r` to see all available commands.\nMake sure to use the `.cah` prefix, for example: `.cah s` to start a game.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        # Help with command syntax
+        await ctx.send(f"Missing required argument for command. Example: `.cah {ctx.command.name} <number>`")
+    else:
+        # Log other errors
+        logger.error(f"Error executing command {ctx.command}: {str(error)}")
+        await ctx.send("An error occurred while processing your command. Please try again.")
+
+@bot.event
+async def on_command(ctx):
+    """Log successful command usage"""
+    logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in channel {ctx.channel.name}")
 
 bot.run(token)
