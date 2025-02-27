@@ -146,18 +146,40 @@ async def show_rules(ctx):
 1. Join a voice channel
 2. Use `!cah start` to start a new game
 3. Others in the voice channel use `!cah join` to join
-4. Use `!cah draw` to get your cards (sent via DM)
-5. When it's your turn, use `!cah play <number>` to play a card
+4. Use `!cah prompt` to draw a black card for the round
+5. Players use `!cah draw` to get their white cards (sent via DM)
+6. When it's your turn, use `!cah play <number>` to play a card
 
 **Commands:**
 `!cah start` - Start a new game (must be in voice channel)
 `!cah join` - Join the current game (must be in voice channel)
+`!cah prompt` - Draw a black card for the current round
 `!cah draw` - Draw your hand of cards (sent via DM)
 `!cah play <number>` - Play a card from your hand
 `!cah end` - End the current game
 `!cah rules` - Show this help message
     """
     await ctx.send(rules_text)
+
+@bot.command(name='prompt')
+async def draw_prompt(ctx):
+    """Draw a black prompt card for the current round"""
+    # Verify user is still in voice channel
+    if not ctx.author.voice:
+        await ctx.send("You need to be in a voice channel to play!")
+        return
+
+    game = game_manager.get_game(ctx.channel.id)
+    if not game:
+        await ctx.send("No game is currently active!")
+        return
+
+    black_card = game.start_round()
+    if black_card:
+        await ctx.send(f"📜 **Black Card**: {black_card}")
+    else:
+        await ctx.send("No more black cards available!")
+
 
 # Get Discord token and run bot
 token = os.getenv('DISCORD_TOKEN')
