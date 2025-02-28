@@ -746,13 +746,27 @@ async def show_rules(ctx):
     # Start Game button
     start_button = Button(style=ButtonStyle.green, label="Start Game", custom_id="start_game")
     async def start_callback(interaction):
-        await start_game(await bot.get_context(interaction.message, cls=commands.Context))
+        # Check if user is in a voice channel
+        if not interaction.user.voice:
+            await interaction.response.send_message("You need to be in a voice channel to start a game!", ephemeral=True)
+            return
+        # Create proper context and start game
+        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+        ctx.author = interaction.user  # Set correct author for voice channel check
+        await start_game(ctx)
     start_button.callback = start_callback
     
     # Join Game button
     join_button = Button(style=ButtonStyle.blurple, label="Join Game", custom_id="join_game")
     async def join_callback(interaction):
-        await join_game(await bot.get_context(interaction.message, cls=commands.Context))
+        # Check if user is in a voice channel
+        if not interaction.user.voice:
+            await interaction.response.send_message("You need to be in a voice channel to join the game!", ephemeral=True)
+            return
+        # Create proper context and join game
+        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+        ctx.author = interaction.user  # Set correct author for voice channel check
+        await join_game(ctx)
     join_button.callback = join_callback
     
     # Custom Card button
