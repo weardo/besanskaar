@@ -470,14 +470,23 @@ async def play_card(ctx, card_number: int):
 @bot.command(name='show', help='Show all played cards')
 async def show_played_cards(ctx):
     """Show all played cards for selection"""
-    if not ctx.author.voice:
-        logger.debug(f"User {ctx.author.name} not in voice channel")
-        await ctx.send("You need to be in a voice channel to play!")
-        return
+    # Find the relevant game if command was sent in DM
+    game = None
+    if isinstance(ctx.channel, discord.DMChannel):
+        for channel_id, g in game_manager.games.items():
+            if ctx.author.id in g.players:
+                game = g
+                break
+    else:
+        # Voice check only if in a server channel
+        if not ctx.author.voice:
+            logger.debug(f"User {ctx.author.name} not in voice channel")
+            await ctx.send("You need to be in a voice channel to play!")
+            return
+        game = game_manager.get_game(ctx.channel.id)
 
-    game = game_manager.get_game(ctx.channel.id)
     if not game:
-        logger.debug(f"No active game in channel {ctx.channel.name}")
+        logger.debug(f"No active game found for user {ctx.author.name}")
         await ctx.send("No game is currently active!")
         return
 
@@ -543,9 +552,31 @@ async def notify_prompt_drawer(user, channel_name=None):
     )
 
     async def view_cards_callback(interaction):
-        ctx = await bot.get_context(interaction.message, cls=commands.Context)
-        ctx.author = interaction.user
-        await show_played_cards(ctx)
+        # Find the relevant game
+        game = None
+        for channel_id, g in game_manager.games.items():
+            if interaction.user.id in g.players:
+                game = g
+                channel_id = channel_id
+                break
+
+        if not game:
+            await interaction.response.send_message("No active game found!", ephemeral=True)
+            return
+
+        if interaction.user.id != game.current_prompt_drawer:
+            await interaction.response.send_message("Only the current prompt drawer can view played cards!", ephemeral=True)
+            return
+
+        played_cards = game.get_played_cards()
+        if not played_cards:
+            await interaction.response.send_message("No cards have been played yet!", ephemeral=True)
+            return
+
+        cards_text = "\n".join([f"{i+1}. {card_info['card']} (played by {card_info['player_name']})"
+                               for i, (_, card_info) in enumerate(played_cards.items())])
+        
+        await interaction.response.send_message(f"**Played Cards**:\n{cards_text}\n\nUse `.cah win <number>` to choose the winning card!")
 
     view_cards_button.callback = view_cards_callback
     view.add_item(view_cards_button)
