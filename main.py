@@ -1046,6 +1046,7 @@ async def select_winner(ctx, card_number: int = None):
 
                 async def draw_callback(interaction):
                     ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                    ctx.author = interaction.user  # Set the correct author before passing context
                     await draw_prompt(ctx)
 
                 draw_button.callback = draw_callback
@@ -1572,22 +1573,46 @@ async def play_custom_answer(ctx, *, answer: str):
             played_cards = game.get_played_cards(include_players=True, include_custom=True)
 
             # Format for the prompt drawer to display
-            cards_text = []
-            i = 1
-            for player_id, info in played_cards.items():
-                prefix = "✏️ " if player_id in game.custom_answers else ""
-                cards_text.append(f"{i}. {prefix}{info['card']}")
-                i += 1
-
-            cards_text = "\n".join(cards_text)
-
-            dm_text = (
-                f"**Current Black Card**: {game.current_black_card['text']}\n\n"
-                "**All answers have been submitted! Here they are:**\n"
-                f"{cards_text}\n\n"
-                "Read these answers aloud in voice chat and then use `.cah win <number>` to choose the winning answer!"
+            # Create an embed for the results
+            embed = Embed(
+                title="🎮 All Cards Played!", 
+                description=f"All players have submitted their answers to: **{game.current_black_card['text']}**", 
+                color=Color.blue()
             )
-            await prompt_drawer.send(dm_text)
+
+            # Add each card as a field
+            for i, (player_id, card_info) in enumerate(played_cards.items()):
+                prefix = "✏️ " if player_id in game.custom_answers else ""
+                embed.add_field(
+                    name=f"Card {i+1}", 
+                    value=f"{prefix}{card_info['card']}", 
+                    inline=False
+                )
+
+            embed.add_field(
+                name="Instructions", 
+                value="Read these answers aloud in voice chat, then select the winner using the button below.", 
+                inline=False
+            )
+
+            # Create a view with select winner button
+            view = View(timeout=None)
+            select_button = Button(
+                style=ButtonStyle.green, 
+                label="Select Winner", 
+                emoji="🏆", 
+                custom_id="select_winner"
+            )
+
+            async def select_winner_callback(interaction):
+                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                ctx.author = interaction.user  # Set the correct author before passing context
+                await select_winner(ctx)
+
+            select_button.callback = select_winner_callback
+            view.add_item(select_button)
+
+            await prompt_drawer.send(embed=embed, view=view)
 
             # Send update to game channel
             if isinstance(ctx.channel, discord.DMChannel):
