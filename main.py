@@ -554,10 +554,11 @@ async def notify_prompt_drawer(user, channel_name=None):
     async def view_cards_callback(interaction):
         # Find the relevant game
         game = None
-        for channel_id, g in game_manager.games.items():
+        channel_id = None
+        for c_id, g in game_manager.games.items():
             if interaction.user.id in g.players:
                 game = g
-                channel_id = channel_id
+                channel_id = c_id
                 break
 
         if not game:
@@ -568,7 +569,7 @@ async def notify_prompt_drawer(user, channel_name=None):
             await interaction.response.send_message("Only the current prompt drawer can view played cards!", ephemeral=True)
             return
 
-        played_cards = game.get_played_cards()
+        played_cards = game.get_played_cards(include_players=True)
         if not played_cards:
             await interaction.response.send_message("No cards have been played yet!", ephemeral=True)
             return
