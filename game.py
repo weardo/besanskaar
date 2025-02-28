@@ -1,14 +1,15 @@
 import random
 import logging
 from cards import load_black_cards, load_white_cards
+from typing import Dict, Optional, List
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-
 class Game:
-    def __init__(self):
-        self.players = {}  # player_id: {name, cards, score}
+    def __init__(self, channel_id: int):
+        self.channel_id = channel_id
+        self.players: Dict[int, Dict] = {}  # player_id: {name, cards, score, dm_channel}
         self.black_cards = load_black_cards()
         self.white_cards = load_white_cards()
         self.current_black_card = None
@@ -18,20 +19,24 @@ class Game:
         self.player_order = []  # List to track player order for turns
         logger.debug(f"Game initialized with {len(self.black_cards)} black cards and {len(self.white_cards)} white cards")
 
-    def add_player(self, player_id, player_name):
+    async def add_player(self, player_id: int, player_name: str, dm_channel) -> bool:
+        """Add a player to the game with their DM channel"""
         if player_id not in self.players:
             self.players[player_id] = {
                 'name': player_name,
                 'cards': [],
-                'score': 0
+                'score': 0,
+                'dm_channel': dm_channel
             }
             self.player_order.append(player_id)
             if len(self.player_order) == 1:  # First player becomes first prompt drawer
                 self.current_prompt_drawer = player_id
+            logger.info(f"Player {player_name} joined the game")
             return True
         return False
 
-    def draw_cards(self, player_id):
+    def draw_cards(self, player_id: int) -> Optional[List[str]]:
+        """Draw cards for a player"""
         if player_id not in self.players:
             return None
 
@@ -43,9 +48,11 @@ class Game:
             self.white_cards.remove(card)
             player['cards'].append(card)
 
+        logger.debug(f"Player {player['name']} drew cards: {player['cards']}")
         return player['cards']
 
-    def play_card(self, player_id, card_index):
+    def play_card(self, player_id: int, card_index: int) -> bool:
+        """Play a card from a player's hand"""
         if player_id not in self.players:
             return False
 
@@ -59,9 +66,11 @@ class Game:
 
         card = player['cards'].pop(card_index)
         self.played_cards[player_id] = card
+        logger.info(f"Player {player['name']} played card: {card}")
         return True
 
-    def start_round(self):
+    def start_round(self) -> Optional[str]:
+        """Start a new round by drawing a black card"""
         if not self.black_cards:
             logger.debug("No black cards remaining in deck")
             return None
@@ -75,7 +84,7 @@ class Game:
         logger.debug(f"Remaining black cards: {len(self.black_cards)}")
         return self.current_black_card
 
-    def select_winner(self, winning_player_id):
+    def select_winner(self, winning_player_id: int) -> bool:
         """Select the winning card and award points"""
         if not self.round_in_progress or winning_player_id not in self.played_cards:
             return False
@@ -99,21 +108,21 @@ class Game:
         self.current_prompt_drawer = self.player_order[next_index]
         logger.debug(f"New prompt drawer: {self.players[self.current_prompt_drawer]['name']}")
 
-    def get_played_cards(self):
+    def get_played_cards(self) -> Dict[int, Dict[str, str]]:
         """Get all played cards for selection"""
         return {player_id: {
             'card': card,
             'player_name': self.players[player_id]['name']
         } for player_id, card in self.played_cards.items()}
 
-    def get_scores(self):
+    def get_scores(self) -> Dict[int, Dict[str, any]]:
         """Get current scores for all players"""
         return {player_id: {
             'name': player['name'],
             'score': player['score']
         } for player_id, player in self.players.items()}
 
-    def get_winner(self):
+    def get_winner(self) -> Optional[Dict[str, any]]:
         """Get the player with the highest score"""
         if not self.players:
             return None
@@ -129,28 +138,51 @@ class Game:
                 }
         return None
 
+    def get_player_dm_channel(self, player_id: int):
+        """Get a player's DM channel"""
+        return self.players.get(player_id, {}).get('dm_channel')
 
-class GameManager:
-    def __init__(self):
-        self.games = {}  # channel_id: Game
-
-    def create_game(self, channel_id):
-        self.games[channel_id] = Game()
-
-    def get_game(self, channel_id):
-        return self.games.get(channel_id)
-
-    def is_game_active(self, channel_id):
-        return channel_id in self.games
-
-    def end_game(self, channel_id):
-        if channel_id in self.games:
-            del self.games[channel_id]
+    def remove_player(self, player_id: int) -> bool:
+        """Remove a player from the game"""
+        if player_id in self.players:
+            player_name = self.players[player_id]['name']
+            del self.players[player_id]
+            if player_id in self.player_order:
+                self.player_order.remove(player_id)
+            if player_id == self.current_prompt_drawer:
+                self._cycle_prompt_drawer()
+            logger.info(f"Player {player_name} left the game")
             return True
         return False
 
-    def add_player(self, channel_id, player_id, player_name):
+class GameManager:
+    def __init__(self):
+        self.games: Dict[int, Game] = {}  # channel_id: Game
+
+    def create_game(self, channel_id: int):
+        """Create a new game in a channel"""
+        self.games[channel_id] = Game(channel_id)
+        logger.info(f"Created new game in channel {channel_id}")
+
+    def get_game(self, channel_id: int) -> Optional[Game]:
+        """Get a game by channel ID"""
+        return self.games.get(channel_id)
+
+    def is_game_active(self, channel_id: int) -> bool:
+        """Check if a game is active in a channel"""
+        return channel_id in self.games
+
+    def end_game(self, channel_id: int) -> bool:
+        """End a game in a channel"""
+        if channel_id in self.games:
+            del self.games[channel_id]
+            logger.info(f"Ended game in channel {channel_id}")
+            return True
+        return False
+
+    async def add_player(self, channel_id: int, player_id: int, player_name: str, dm_channel) -> bool:
+        """Add a player to a game"""
         game = self.get_game(channel_id)
         if game:
-            return game.add_player(player_id, player_name)
+            return await game.add_player(player_id, player_name, dm_channel)
         return False

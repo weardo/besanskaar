@@ -1,15 +1,17 @@
 """
 Required Bot Permissions:
-- View Channels (for seeing text and voice channels)
-- Send Messages (for responding to commands)
-- Send Messages in Threads (for thread discussions)
-- Read Message History (for tracking game progress)
-- Connect (for voice channel verification)
-- View Voice Channel Members (for player tracking)
+- View Channels
+- Send Messages
+- Send Messages in Threads
+- Read Message History
+- Connect
+- View Voice Channel Members
+- Create Public Threads
+- Send Messages in Threads
+- Use External Emojis
+- Add Reactions
 
-Permission Integer: 103079488
-Invite Link Format:
-https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=103079488&scope=bot%20applications.commands
+Permission Integer: 274877958144
 """
 
 import os
@@ -18,16 +20,17 @@ from discord.ext import commands
 import logging
 from game import GameManager
 from database import Database
+from ui_components import GameStartView, CardSelectView, WinnerSelectView
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize bot with required intents and command prefix
+# Initialize bot with required intents
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Privileged intent
-intents.voice_states = True  # Privileged intent
+intents.members = True
+intents.voice_states = True
 bot = commands.Bot(command_prefix=['.cah ', '!cah '], intents=intents)
 
 # Initialize game manager and database
@@ -38,15 +41,10 @@ db = Database()
 async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
     try:
-        # Sync commands in background to avoid blocking
         synced = await bot.tree.sync()
         logger.info(f"Synced {len(synced)} command(s)")
     except Exception as e:
         logger.error(f"Failed to sync commands: {e}")
-
-    # Log startup status
-    logger.info("Bot is ready to play Cards Against Humanity!")
-    logger.info("Use '.cah s' to start a new game or '.cah r' to see all commands")
 
 @bot.command(name='s', help='Start a new game')
 async def start_game(ctx):
@@ -60,7 +58,15 @@ async def start_game(ctx):
         return
 
     game_manager.create_game(ctx.channel.id)
-    await ctx.send("New game started! Players in the voice channel can join using `.cah j`")
+
+    # Create and send embed with join button
+    embed = discord.Embed(
+        title="🎮 New Game Started!",
+        description="Click the button below to join the game!\nMake sure you're in the voice channel.",
+        color=discord.Color.green()
+    )
+    view = GameStartView()
+    await ctx.send(embed=embed, view=view)
     db.log_game_start(ctx.channel.id, ctx.author.id)
 
 @bot.command(name='j', help='Join the current game')
@@ -84,7 +90,7 @@ async def join_game(ctx):
 @bot.command(name='d', help='Draw white cards')
 async def draw_cards(ctx):
     """Draw your hand of white cards"""
-    if not ctx.author.voice:
+    if ctx.guild and not ctx.author.voice:
         await ctx.send("You need to stay in the voice channel to play!")
         return
 
@@ -95,9 +101,20 @@ async def draw_cards(ctx):
 
     cards = game.draw_cards(ctx.author.id)
     if cards:
-        cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
-        await ctx.author.send(f"Your cards:\n{cards_text}")
-        await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
+        # Create card selection view
+        embed = discord.Embed(
+            title="Your Cards",
+            description="Select a card to play when it's your turn!",
+            color=discord.Color.blue()
+        )
+        for i, card in enumerate(cards, 1):
+            embed.add_field(name=f"Card {i}", value=card, inline=False)
+
+        view = CardSelectView(cards)
+        await ctx.author.send(embed=embed, view=view)
+
+        if ctx.guild:
+            await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
     else:
         await ctx.send("You're not in the game or already have cards!")
 
@@ -156,9 +173,12 @@ async def show_played_cards(ctx):
         await ctx.send("No cards have been played yet!")
         return
 
-    cards_text = "\n".join([f"{i+1}. {card_info['card']} (played by {card_info['player_name']})"
-                           for i, (_, card_info) in enumerate(played_cards.items())])
-    await ctx.send(f"**Played Cards**:\n{cards_text}\n\nUse `.cah win <number>` to choose the winning card!")
+    embed = discord.Embed(title="Played Cards", color=discord.Color.purple())
+    for i, (_, card_info) in enumerate(played_cards.items()):
+        embed.add_field(name=f"{i+1}. {card_info['player_name']}", value=card_info['card'], inline=False)
+    embed.set_footer(text="Use `.cah win <number>` to choose the winning card!")
+    await ctx.send(embed=embed)
+
 
 @bot.command(name='win', help='Select winning card')
 async def select_winner(ctx, card_number: int):
@@ -313,15 +333,12 @@ if not token:
 async def on_command_error(ctx, error):
     """Handle command errors with helpful messages"""
     if isinstance(error, commands.CommandNotFound):
-        # Suggest help command for unknown commands
         command = ctx.message.content.split()[0] if ctx.message.content else 'Unknown'
         logger.warning(f"User {ctx.author.name} attempted to use unknown command: {command}")
-        await ctx.send(f"Command not found. Use `.cah r` to see all available commands.\nMake sure to use the `.cah` prefix, for example: `.cah s` to start a game.")
+        await ctx.send(f"Command not found. Use `.cah r` to see available commands.\nMake sure to use the `.cah` prefix!")
     elif isinstance(error, commands.MissingRequiredArgument):
-        # Help with command syntax
         await ctx.send(f"Missing required argument for command. Example: `.cah {ctx.command.name} <number>`")
     else:
-        # Log other errors
         logger.error(f"Error executing command {ctx.command}: {str(error)}")
         await ctx.send("An error occurred while processing your command. Please try again.")
 
