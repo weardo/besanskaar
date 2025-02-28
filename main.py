@@ -15,6 +15,8 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=10
 import os
 import discord
 from discord.ext import commands
+from discord import app_commands, Embed, Color, ButtonStyle
+from discord.ui import Button, View
 import logging
 from game import GameManager
 from database import Database
@@ -107,7 +109,37 @@ async def start_game(ctx, *args):
 
     game_manager.create_game(ctx.channel.id, allow_nsfw)
     nsfw_status = "NSFW content enabled" if allow_nsfw else "NSFW content disabled"
-    await ctx.send(f"New game started! {nsfw_status}\nPlayers in the voice channel can join using `.cah j`")
+    
+    # Create a fancy embed for game start
+    embed = Embed(
+        title="🎮 Cards Against Humanity - New Game!", 
+        description=f"A new game has been started by {ctx.author.display_name}!\n\n**{nsfw_status}**", 
+        color=Color.purple()
+    )
+    embed.add_field(name="How to Join", value="Click the button below or type `.cah j`", inline=False)
+    embed.set_footer(text="Join a voice channel to play!")
+    
+    # Create buttons for common actions
+    view = View(timeout=None)
+    join_button = Button(style=ButtonStyle.green, label="Join Game", custom_id="join_game")
+    rules_button = Button(style=ButtonStyle.blurple, label="Show Rules", custom_id="show_rules")
+    
+    async def join_callback(interaction):
+        if interaction.user.voice and interaction.user.voice.channel.id == ctx.channel.id:
+            await join_game(await bot.get_context(interaction.message, cls=commands.Context))
+        else:
+            await interaction.response.send_message("You need to be in a voice channel to join!", ephemeral=True)
+    
+    async def rules_callback(interaction):
+        await show_rules(await bot.get_context(interaction.message, cls=commands.Context))
+    
+    join_button.callback = join_callback
+    rules_button.callback = rules_callback
+    
+    view.add_item(join_button)
+    view.add_item(rules_button)
+    
+    await ctx.send(embed=embed, view=view)
     db.log_game_start(ctx.channel.id, ctx.author.id)
 
 @bot.command(name='j', help='Join the current game')
@@ -123,9 +155,34 @@ async def join_game(ctx):
 
     success = game_manager.add_player(ctx.channel.id, ctx.author.id, ctx.author.name)
     if success:
-        await ctx.send(f"{ctx.author.name} has joined the game!")
-        # Send initial instructions via DM
-        await ctx.author.send("Welcome to Cards Against Humanity! You'll play the game through DMs.\nUse `.cah d` to draw your cards.")
+        # Channel notification
+        embed = Embed(
+            title="Player Joined", 
+            description=f"**{ctx.author.name}** has joined the game!", 
+            color=Color.green()
+        )
+        await ctx.send(embed=embed)
+        
+        # Create DM welcome message with buttons
+        dm_embed = Embed(
+            title="🃏 Welcome to Cards Against Humanity!", 
+            description=(
+                "You'll play the game through DMs for privacy.\n\n"
+                "Click the button below to draw your cards and begin playing!"
+            ),
+            color=Color.blue()
+        )
+        
+        dm_view = View(timeout=None)
+        draw_button = Button(style=ButtonStyle.green, label="Draw Cards", custom_id="draw_cards")
+        
+        async def draw_callback(interaction):
+            await draw_cards(await bot.get_context(interaction.message, cls=commands.Context))
+        
+        draw_button.callback = draw_callback
+        dm_view.add_item(draw_button)
+        
+        await ctx.author.send(embed=dm_embed, view=dm_view)
         db.log_player_join(ctx.channel.id, ctx.author.id)
     else:
         await ctx.send("You're already in the game!")
@@ -153,12 +210,71 @@ async def draw_cards(ctx):
 
     cards = game.draw_cards(ctx.author.id)
     if cards:
-        cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
-        await ctx.author.send(f"Your cards:\n{cards_text}")
+        # Create a fancy card display
+        embed = Embed(
+            title="🃏 Your Cards", 
+            description="Here are your white cards. Play one with the buttons below when it's your turn.", 
+            color=Color.gold()
+        )
+        
+        # Add each card as a field for better readability
+        for i, card in enumerate(cards):
+            embed.add_field(name=f"Card {i+1}", value=card, inline=False)
+        
+        # Create buttons for playing cards
+        view = View(timeout=None)
+        
+        # Add buttons to play each card (up to 5 per row)
+        for i in range(len(cards)):
+            card_button = Button(
+                style=ButtonStyle.gray, 
+                label=f"Play #{i+1}", 
+                custom_id=f"play_card_{i+1}"
+            )
+            
+            # This is a factory function to capture the card index correctly
+            def create_callback(index):
+                async def play_card_callback(interaction):
+                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                    await play_card(ctx, index)
+                return play_card_callback
+            
+            card_button.callback = create_callback(i+1)
+            view.add_item(card_button)
+        
+        # Add a custom answer button
+        custom_button = Button(style=ButtonStyle.blurple, label="Custom Answer", custom_id="custom_answer")
+        
+        async def custom_callback(interaction):
+            custom_modal = discord.ui.Modal(title="Your Custom Answer")
+            custom_text = discord.ui.TextInput(
+                label="Your answer",
+                placeholder="Type your funny answer here...",
+                style=discord.TextStyle.paragraph
+            )
+            custom_modal.add_item(custom_text)
+            
+            async def modal_callback(interaction):
+                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                await play_custom_answer(ctx, answer=custom_text.value)
+                await interaction.response.send_message("Custom answer submitted!", ephemeral=True)
+                
+            custom_modal.on_submit = modal_callback
+            await interaction.response.send_modal(custom_modal)
+            
+        custom_button.callback = custom_callback
+        view.add_item(custom_button)
+        
+        await ctx.author.send(embed=embed, view=view)
 
         # If in a server channel, also send confirmation there
         if not isinstance(ctx.channel, discord.DMChannel):
-            await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
+            confirm_embed = Embed(
+                title="Cards Drawn",
+                description=f"Cards have been sent to {ctx.author.name} via DM!",
+                color=Color.green()
+            )
+            await ctx.send(embed=confirm_embed)
     else:
         await ctx.send("You're not in the game or already have cards!")
 
@@ -247,10 +363,10 @@ async def show_played_cards(ctx):
     await ctx.send(f"**Played Cards**:\n{cards_text}\n\nUse `.cah win <number>` to choose the winning card!")
 
 @bot.command(name='win', help='Select winning card')
-async def select_winner(ctx, card_number: int):
+async def select_winner(ctx, card_number: int = None):
     """Select the winning card for the round"""
     try:
-        if isinstance(card_number, str):
+        if isinstance(card_number, str) and card_number is not None:
             card_number = int(card_number)
 
         # Find the relevant game if command was sent in DM
@@ -281,6 +397,53 @@ async def select_winner(ctx, card_number: int):
 
         played_cards = game.get_played_cards(include_players=True)
         played_cards_list = list(played_cards.items())
+        
+        # If card_number is None, show all cards with buttons to select
+        if card_number is None:
+            if not played_cards_list:
+                await ctx.send("No cards have been played yet!")
+                return
+            
+            embed = Embed(
+                title="🎮 Select Winner", 
+                description=f"Select the best answer to: **{game.current_black_card['text']}**", 
+                color=Color.blue()
+            )
+            
+            # Show all cards
+            for i, (_, card_info) in enumerate(played_cards_list):
+                prefix = "✏️ " if _ in game.custom_answers else ""
+                embed.add_field(
+                    name=f"Card {i+1}", 
+                    value=f"{prefix}{card_info['card']}", 
+                    inline=False
+                )
+            
+            # Create selection buttons
+            view = View(timeout=None)
+            
+            # Add buttons for each card (up to 5 per row)
+            for i in range(len(played_cards_list)):
+                select_button = Button(
+                    style=ButtonStyle.green, 
+                    label=f"Select #{i+1}", 
+                    custom_id=f"select_winner_{i+1}"
+                )
+                
+                # Factory to capture card number correctly
+                def create_callback(num):
+                    async def select_callback(interaction):
+                        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                        await select_winner(ctx, num)
+                    return select_callback
+                
+                select_button.callback = create_callback(i+1)
+                view.add_item(select_button)
+            
+            await ctx.send(embed=embed, view=view)
+            return
+            
+        # Process the winner selection if card_number is provided
         if not played_cards_list or card_number < 1 or card_number > len(played_cards_list):
             logger.debug(f"Invalid card selection: {card_number}, available cards: {len(played_cards_list)}")
             await ctx.send("Invalid card number!")
@@ -290,34 +453,108 @@ async def select_winner(ctx, card_number: int):
         winning_card = played_cards_list[card_number - 1][1]
 
         if game.select_winner(winning_player_id):
+            # Create winner announcement embed
+            winner_embed = Embed(
+                title="🎉 Round Winner!", 
+                description=f"**{winning_card['player_name']}** wins this round!", 
+                color=Color.gold()
+            )
+            
+            # Add the black card and winning answer
+            winner_embed.add_field(
+                name="Black Card", 
+                value=game.current_black_card['text'], 
+                inline=False
+            )
+            
+            # Check if it was a custom answer
+            prefix = "✏️ " if winning_player_id in game.custom_answers else ""
+            winner_embed.add_field(
+                name="Winning Answer", 
+                value=f"{prefix}{winning_card['card']}", 
+                inline=False
+            )
+            
             # First announce the winner
-            await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+            await ctx.send(embed=winner_embed)
 
             # Also announce to the game channel if command was in DM
             if isinstance(ctx.channel, discord.DMChannel) and channel_id:
                 try:
                     game_channel = bot.get_channel(channel_id)
                     if game_channel:
-                        await game_channel.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+                        await game_channel.send(embed=winner_embed)
                 except Exception as e:
                     logger.error(f"Failed to send winner announcement to game channel: {str(e)}")
 
-            # Then reveal all played cards
-            cards_text = "\n".join([f"• {info['player_name']}: {info['card']}"
-                                  for _, info in played_cards.items()])
-            await ctx.send(f"**All Played Cards**:\n{cards_text}")
+            # Create an embed for all played cards
+            cards_embed = Embed(
+                title="📝 All Played Cards", 
+                description="Here are all the cards that were played this round:", 
+                color=Color.blue()
+            )
+            
+            # Add each card as a field
+            for player_id, info in played_cards.items():
+                prefix = "✏️ " if player_id in game.custom_answers else ""
+                cards_embed.add_field(
+                    name=info['player_name'], 
+                    value=f"{prefix}{info['card']}", 
+                    inline=False
+                )
+            
+            await ctx.send(embed=cards_embed)
 
-            # Show current scores
+            # Create an embed for scores
             scores = game.get_scores()
-            scores_text = "\n".join([f"{info['name']}: {info['score']} points" for info in scores.values()])
-            await ctx.send(f"**Current Scores**:\n{scores_text}")
+            scores_embed = Embed(
+                title="🏆 Current Scores", 
+                description="Here are the current standings:", 
+                color=Color.teal()
+            )
+            
+            # Add each player's score
+            for player_id, info in scores.items():
+                scores_embed.add_field(
+                    name=info['name'], 
+                    value=f"{info['score']} points", 
+                    inline=True
+                )
+            
+            await ctx.send(embed=scores_embed)
 
-            # Announce next prompt drawer
+            # Announce next prompt drawer with a button
             next_drawer = game.players[game.current_prompt_drawer]['name']
-            await ctx.send(f"\n👉 {next_drawer} will draw the next black card!")
+            next_drawer_embed = Embed(
+                title="Next Round", 
+                description=f"👉 **{next_drawer}** will draw the next black card!", 
+                color=Color.purple()
+            )
+            
+            # Notify in the channel
+            await ctx.send(embed=next_drawer_embed)
+            
+            # Send DM to next prompt drawer
             try:
                 user = await bot.fetch_user(game.current_prompt_drawer)
-                await user.send(f"It's your turn to draw the next black card! Use `.cah p`")
+                prompt_embed = Embed(
+                    title="🎲 Your Turn!", 
+                    description="It's your turn to draw the next black card!", 
+                    color=Color.purple()
+                )
+                
+                # Add button to draw card
+                prompt_view = View(timeout=None)
+                draw_button = Button(style=ButtonStyle.green, label="Draw Black Card", custom_id="draw_black_card")
+                
+                async def draw_callback(interaction):
+                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                    await draw_prompt(ctx)
+                
+                draw_button.callback = draw_callback
+                prompt_view.add_item(draw_button)
+                
+                await user.send(embed=prompt_embed, view=prompt_view)
             except Exception as e:
                 logger.error(f"Failed to notify next prompt drawer {game.current_prompt_drawer}: {str(e)}")
 
@@ -327,8 +564,62 @@ async def select_winner(ctx, card_number: int):
                     try:
                         user = await bot.fetch_user(player_id)
                         cards = game.players[player_id]['cards']
-                        cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
-                        await user.send(f"Your cards have been topped up:\n{cards_text}")
+                        
+                        cards_embed = Embed(
+                            title="🃏 Cards Updated", 
+                            description="Your cards have been topped up:", 
+                            color=Color.gold()
+                        )
+                        
+                        # Add each card as a field
+                        for i, card in enumerate(cards):
+                            cards_embed.add_field(name=f"Card {i+1}", value=card, inline=False)
+                        
+                        # Create buttons for playing cards
+                        cards_view = View(timeout=None)
+                        
+                        # Add buttons to play each card (up to 5 per row)
+                        for i in range(len(cards)):
+                            card_button = Button(
+                                style=ButtonStyle.gray, 
+                                label=f"Play #{i+1}", 
+                                custom_id=f"play_card_{i+1}"
+                            )
+                            
+                            # This is a factory function to capture the card index correctly
+                            def create_callback(index):
+                                async def play_card_callback(interaction):
+                                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                                    await play_card(ctx, index)
+                                return play_card_callback
+                            
+                            card_button.callback = create_callback(i+1)
+                            cards_view.add_item(card_button)
+                        
+                        # Add a custom answer button
+                        custom_button = Button(style=ButtonStyle.blurple, label="Custom Answer", custom_id="custom_answer")
+                        
+                        async def custom_callback(interaction):
+                            custom_modal = discord.ui.Modal(title="Your Custom Answer")
+                            custom_text = discord.ui.TextInput(
+                                label="Your answer",
+                                placeholder="Type your funny answer here...",
+                                style=discord.TextStyle.paragraph
+                            )
+                            custom_modal.add_item(custom_text)
+                            
+                            async def modal_callback(interaction):
+                                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                                await play_custom_answer(ctx, answer=custom_text.value)
+                                await interaction.response.send_message("Custom answer submitted!", ephemeral=True)
+                                
+                            custom_modal.on_submit = modal_callback
+                            await interaction.response.send_modal(custom_modal)
+                            
+                        custom_button.callback = custom_callback
+                        cards_view.add_item(custom_button)
+                        
+                        await user.send(embed=cards_embed, view=cards_view)
                     except Exception as e:
                         logger.error(f"Failed to send updated cards to player {player_id}: {str(e)}")
         else:
@@ -379,49 +670,104 @@ async def end_game(ctx):
 @bot.command(name='r', help='Show game rules and commands')
 async def show_rules(ctx):
     """Show game rules and commands"""
-    rules_text = """
-**Cards Against Humanity - Voice Chat Edition**
-*A party game for horrible people, now in Discord!*
-
-**How to Play:**
-1. Join a voice channel
-2. Use `.cah s` to start a new game (add 'nsfw' to enable NSFW content)
-3. Others in the voice channel use `.cah j` to join
-4. Each round:
-   - One player uses `.cah p` to draw a black card
-   - Other players get their white cards via DM
-   - Players either:
-     • Play a card with `.cah play <number>`
-     • Or submit a custom answer with `.cah custom <your answer>`
-   - Prompt drawer gets answers in DM to read aloud and select winner
-   - Prompt drawer picks winner with `.cah win <number>`
-
-**Commands:**
-`.cah s` - Start game
-`.cah s nsfw` - Start game with NSFW content
-`.cah j` - Join game
-`.cah p` - Draw black card prompt
-`.cah play <number>` - Play a card
-`.cah custom <answer>` - Submit your own custom answer (Example: `.cah custom A really funny answer`)
-`.cah win <number>` - Select winner
-`.cah score` - Show scores
-`.cah config nsfw on/off` - Toggle NSFW content
-`.cah end` - End game
-`.cah r` - Show this help
-`.cah exit` - Exit game
-
-**Custom Card Management:**
-`.cah save <white/black> <text>` - Save a custom card to the game database
-`.cah list [white/black]` - List custom cards (Mod only)
-`.cah approve <white/black> <text>` - Approve custom card for permanent use (Mod only)
-`.cah remove <white/black> <text>` - Remove inappropriate cards from game (Mod only)
-
-*Note: Custom answers (using `.cah custom`) are marked with ✏️ when displayed to the prompt drawer.*
-*Custom cards (using `.cah save`) are saved to the database and can be drawn by players in future games.*
-
-*Note: All players automatically play through DMs for a better experience!*
-    """
-    await ctx.send(rules_text)
+    
+    # Create main rules embed
+    rules_embed = Embed(
+        title="🃏 Cards Against Humanity - Voice Chat Edition", 
+        description="*A party game for horrible people, now in Discord!*", 
+        color=Color.brand_red()
+    )
+    
+    # Add sections as fields
+    rules_embed.add_field(
+        name="📋 How to Play",
+        value=(
+            "1️⃣ Join a voice channel\n"
+            "2️⃣ Start game with buttons or `.cah s`\n"
+            "3️⃣ Others join with buttons or `.cah j`\n"
+            "4️⃣ Play rounds: black card → white cards → pick winner\n"
+            "5️⃣ Winner gets a point, new round begins"
+        ),
+        inline=False
+    )
+    
+    basic_commands = (
+        "🎮 `.cah s` - Start game\n"
+        "🎮 `.cah s nsfw` - Start with NSFW content\n"
+        "👋 `.cah j` - Join game\n"
+        "🎲 `.cah p` - Draw black card\n"
+        "🃏 `.cah play <number>` - Play a card\n"
+        "✏️ `.cah c <answer>` - Submit custom answer\n"
+        "🏆 `.cah win <number>` - Select winner\n"
+        "📊 `.cah score` - Show scores\n"
+        "⚙️ `.cah config nsfw on/off` - Toggle NSFW\n"
+        "🚪 `.cah exit` - Leave game\n"
+        "🛑 `.cah end` - End game"
+    )
+    
+    rules_embed.add_field(
+        name="🎮 Basic Commands",
+        value=basic_commands,
+        inline=False
+    )
+    
+    # Create a separate embed for custom card commands
+    custom_embed = Embed(
+        title="✨ Custom Card Management", 
+        color=Color.gold()
+    )
+    
+    custom_commands = (
+        "💾 `.cah save <white/black> <text>` - Save custom card\n"
+        "📋 `.cah list [white/black]` - List custom cards (Mod only)\n"
+        "✅ `.cah approve <white/black> <text>` - Approve custom card (Mod only)\n"
+        "❌ `.cah remove <white/black> <text>` - Remove card (Mod only)"
+    )
+    
+    custom_embed.add_field(
+        name="Commands",
+        value=custom_commands,
+        inline=False
+    )
+    
+    custom_embed.add_field(
+        name="Notes",
+        value=(
+            "• Custom answers (using `.cah c`) are marked with ✏️\n"
+            "• Custom cards (using `.cah save`) need moderator approval\n"
+            "• Approved cards are added to the permanent deck"
+        ),
+        inline=False
+    )
+    
+    # Create buttons for quick actions
+    view = View(timeout=None)
+    
+    # Start Game button
+    start_button = Button(style=ButtonStyle.green, label="Start Game", custom_id="start_game")
+    async def start_callback(interaction):
+        await start_game(await bot.get_context(interaction.message, cls=commands.Context))
+    start_button.callback = start_callback
+    
+    # Join Game button
+    join_button = Button(style=ButtonStyle.blurple, label="Join Game", custom_id="join_game")
+    async def join_callback(interaction):
+        await join_game(await bot.get_context(interaction.message, cls=commands.Context))
+    join_button.callback = join_callback
+    
+    # Custom Card button
+    custom_button = Button(style=ButtonStyle.gray, label="Create Custom Card", custom_id="create_custom")
+    async def custom_callback(interaction):
+        await save_custom_answer(await bot.get_context(interaction.message, cls=commands.Context))
+    custom_button.callback = custom_callback
+    
+    view.add_item(start_button)
+    view.add_item(join_button)
+    view.add_item(custom_button)
+    
+    # Send both embeds
+    await ctx.send(embed=rules_embed)
+    await ctx.send(embed=custom_embed, view=view)
 
 @bot.command(name='p', help='Draw a black card prompt')
 async def draw_prompt(ctx):
@@ -462,30 +808,51 @@ async def draw_prompt(ctx):
 
     # Don't allow drawing a new card if a round is in progress
     if game.round_in_progress and game.current_black_card:
-        await ctx.send(f"A round is already in progress! Current black card: {game.current_black_card['text']}")
+        embed = Embed(
+            title="Round in Progress", 
+            description=f"A round is already in progress!", 
+            color=Color.red()
+        )
+        embed.add_field(name="Current Black Card", value=game.current_black_card['text'], inline=False)
+        await ctx.send(embed=embed)
         return
 
     black_card = game.start_round()
     if black_card:
         logger.info(f"Drew black card: {black_card}")
-
+        
+        # Create an embed for the black card
+        embed = Embed(
+            title="📜 Black Card", 
+            description=black_card, 
+            color=Color.dark_grey()
+        )
+        embed.set_footer(text=f"Drawn by {ctx.author.display_name} | Other players: submit your answers!")
+        
         # Send to the game channel if command was in DM
         if isinstance(ctx.channel, discord.DMChannel) and channel_id:
             try:
                 game_channel = bot.get_channel(channel_id)
                 if game_channel:
-                    await game_channel.send(f"📜 **Black Card**: {black_card}")
+                    await game_channel.send(embed=embed)
             except Exception as e:
                 logger.error(f"Failed to send black card to game channel: {str(e)}")
 
-        await ctx.send(f"📜 **Black Card**: {black_card}")
+        await ctx.send(embed=embed)
 
         # Notify all other players to play their cards
         for player_id in game.players:
             if player_id != game.current_prompt_drawer:
                 try:
                     user = await bot.fetch_user(player_id)
-                    await user.send(f"📜 **New Black Card**: {black_card}\n\nUse `.cah play <number>` to play a card from your hand!")
+                    player_embed = Embed(
+                        title="🎮 Your Turn to Play", 
+                        description=f"A new black card has been drawn!", 
+                        color=Color.dark_grey()
+                    )
+                    player_embed.add_field(name="Black Card", value=black_card, inline=False)
+                    player_embed.add_field(name="Instructions", value="Use the buttons below your cards to play!", inline=False)
+                    await user.send(embed=player_embed)
                 except Exception as e:
                     logger.error(f"Failed to send notification to player {player_id}: {str(e)}")
     else:
@@ -643,19 +1010,93 @@ async def play_custom_answer(ctx, *, answer: str):
         await ctx.send("An error occurred while submitting your answer. Please try again.")
 
 @bot.command(name='save', help='Save a custom answer to the game')
-async def save_custom_answer(ctx, card_type: str, *, card_text: str):
+async def save_custom_answer(ctx, card_type: str = None, *, card_text: str = None):
     """Save a custom answer to be used in future games"""
+    # If no arguments provided, show an interactive modal
+    if card_type is None or card_text is None:
+        # Create a modal for custom card submission
+        async def send_card_modal(interaction, card_type):
+            modal = discord.ui.Modal(title=f"Create Custom {card_type.capitalize()} Card")
+            card_input = discord.ui.TextInput(
+                label=f"Your custom {card_type} card text",
+                placeholder="Enter your card text here...",
+                style=discord.TextStyle.paragraph,
+                max_length=200
+            )
+            modal.add_item(card_input)
+            
+            async def modal_submit(interaction):
+                # Process the submitted card
+                game = game_manager.get_game(ctx.channel.id)
+                if not game:
+                    # Create temporary game for database access
+                    game_manager.create_game(ctx.channel.id)
+                    game = game_manager.get_game(ctx.channel.id)
+                
+                if game.add_custom_card(card_input.value, card_type.lower(), interaction.user.id):
+                    embed = Embed(
+                        title="✅ Card Saved", 
+                        description=f"Your custom {card_type} card has been saved!", 
+                        color=Color.green()
+                    )
+                    embed.add_field(name="Card Text", value=card_input.value, inline=False)
+                    embed.add_field(name="Status", value="Awaiting moderator approval", inline=False)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                else:
+                    await interaction.response.send_message(
+                        "Failed to save card. It might already exist.", 
+                        ephemeral=True
+                    )
+            
+            modal.on_submit = modal_submit
+            await interaction.response.send_modal(modal)
+        
+        # Create card type selection buttons
+        embed = Embed(
+            title="Create Custom Card", 
+            description="Select the type of card you want to create:", 
+            color=Color.blue()
+        )
+        
+        view = View(timeout=None)
+        white_button = Button(style=ButtonStyle.secondary, label="White Card (Answer)", custom_id="white_card")
+        black_button = Button(style=ButtonStyle.primary, label="Black Card (Prompt)", custom_id="black_card")
+        
+        async def white_callback(interaction):
+            await send_card_modal(interaction, "white")
+        
+        async def black_callback(interaction):
+            await send_card_modal(interaction, "black")
+        
+        white_button.callback = white_callback
+        black_button.callback = black_callback
+        
+        view.add_item(white_button)
+        view.add_item(black_button)
+        
+        await ctx.send(embed=embed, view=view)
+        return
+    
+    # Process command with provided arguments
     if card_type.lower() not in ['white', 'black']:
         await ctx.send("Please specify either 'white' or 'black' as the card type!")
         return
 
     game = game_manager.get_game(ctx.channel.id)
     if not game:
-        await ctx.send("No active game found!")
-        return
+        # Create temporary game for database access
+        game_manager.create_game(ctx.channel.id)
+        game = game_manager.get_game(ctx.channel.id)
 
     if game.add_custom_card(card_text, card_type.lower(), ctx.author.id):
-        await ctx.send(f"Custom {card_type} card saved! It will be available after moderator approval.")
+        embed = Embed(
+            title="✅ Card Saved", 
+            description=f"Your custom {card_type} card has been saved!", 
+            color=Color.green()
+        )
+        embed.add_field(name="Card Text", value=card_text, inline=False)
+        embed.add_field(name="Status", value="Awaiting moderator approval", inline=False)
+        await ctx.send(embed=embed)
     else:
         await ctx.send("Failed to save custom card. It might already exist.")
 
