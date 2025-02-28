@@ -580,14 +580,6 @@ async def on_command(ctx):
     else:
         logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in channel {ctx.channel.name}")
 
-# Get Discord token and run bot
-token = os.getenv('DISCORD_TOKEN')
-if not token:
-    logger.error("No Discord token found!")
-    raise ValueError("Please set the DISCORD_TOKEN environment variable")
-
-bot.run(token)
-
 @bot.command(name='custom', aliases=['c'], help='Play a custom answer instead of a card')
 async def play_custom_answer(ctx, *, answer: str):
     """Play a custom answer instead of using a card from your hand"""
@@ -608,17 +600,19 @@ async def play_custom_answer(ctx, *, answer: str):
 
         result = game.play_custom_answer(ctx.author.id, answer)
         if result == "all_played":
-            await send_game_message(ctx, f"{ctx.author.name} has played their answer!", game_update=True)
+            await send_game_message(ctx, f"{ctx.author.name} has played their custom answer!", game_update=True)
 
             # Get prompt drawer and send them a DM with played cards/answers
             prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
-            played_cards = game.get_played_cards(include_custom=True)  # Include custom flag but not player names
+            played_cards = game.get_played_cards(include_players=True, include_custom=True)
 
-            # Format cards, marking custom answers with a ✏️ emoji
+            # Format for the prompt drawer to display
             cards_text = []
-            for i, card_info in enumerate(played_cards):
-                prefix = "✏️ " if card_info.get('is_custom', False) else ""
-                cards_text.append(f"{i+1}. {prefix}{card_info['text']}")
+            i = 1
+            for player_id, info in played_cards.items():
+                prefix = "✏️ " if player_id in game.custom_answers else ""
+                cards_text.append(f"{i}. {prefix}{info['card']}")
+                i += 1
 
             cards_text = "\n".join(cards_text)
 
@@ -639,7 +633,8 @@ async def play_custom_answer(ctx, *, answer: str):
                             await channel.send("All players have submitted their answers! Waiting for the prompt drawer to read them and select a winner...")
 
         elif result:
-            await send_game_message(ctx, f"{ctx.author.name} has played their answer!", game_update=True)
+            await send_game_message(ctx, f"{ctx.author.name} has played their custom answer!", game_update=True)
+            await ctx.send("Your custom answer has been submitted!")
         else:
             await ctx.send("You can't play right now!")
 
@@ -706,7 +701,7 @@ async def remove_card(ctx, card_type: str, *, card_text: str):
 @commands.has_permissions(manage_messages=True)
 async def list_custom_cards(ctx, card_type: str = None, show_all: bool = False):
     """List custom cards"""
-    if card_type and card_type.lower() not in ['white', 'black']:
+    if card_type and card_type.lower() not in['white', 'black']:
         await ctx.send("Please specify either 'white' or 'black' as the card type!")
         return
 
@@ -721,3 +716,11 @@ async def list_custom_cards(ctx, card_type: str = None, show_all: bool = False):
             await ctx.send(f"**{title}**:\n{cards_text}")
         else:
             await ctx.send(f"No custom {t} cards found.")
+
+# Get Discord token and run bot
+token = os.getenv('DISCORD_TOKEN')
+if not token:
+    logger.error("No Discord token found!")
+    raise ValueError("Please set the DISCORD_TOKEN environment variable")
+
+bot.run(token)
