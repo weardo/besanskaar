@@ -409,6 +409,11 @@ async def draw_prompt(ctx):
                 game = g
                 channel_id = c_id
                 break
+        
+        # In DM, check if this player is the prompt drawer
+        if game and game.current_prompt_drawer != ctx.author.id:
+            await ctx.send("Only the current prompt drawer can draw a black card!")
+            return
     else:
         # Voice check only if in a server channel
         if not ctx.author.voice:
@@ -417,9 +422,19 @@ async def draw_prompt(ctx):
             return
         game = game_manager.get_game(ctx.channel.id)
         channel_id = ctx.channel.id
+        
+        # In server channel, check if this player is the prompt drawer
+        if game and game.current_prompt_drawer != ctx.author.id:
+            await ctx.send(f"Only the current prompt drawer ({game.players[game.current_prompt_drawer]['name']}) can draw a black card!")
+            return
 
     if not game:
         await ctx.send("No game is currently active!")
+        return
+
+    # Don't allow drawing a new card if a round is in progress
+    if game.round_in_progress and game.current_black_card:
+        await ctx.send(f"A round is already in progress! Current black card: {game.current_black_card['text']}")
         return
 
     black_card = game.start_round()
@@ -428,11 +443,23 @@ async def draw_prompt(ctx):
         
         # Send to the game channel if command was in DM
         if isinstance(ctx.channel, discord.DMChannel) and channel_id:
-            game_channel = bot.get_channel(channel_id)
-            if game_channel:
-                await game_channel.send(f"📜 **Black Card**: {black_card}")
+            try:
+                game_channel = bot.get_channel(channel_id)
+                if game_channel:
+                    await game_channel.send(f"📜 **Black Card**: {black_card}")
+            except Exception as e:
+                logger.error(f"Failed to send black card to game channel: {str(e)}")
         
         await ctx.send(f"📜 **Black Card**: {black_card}")
+        
+        # Notify all other players to play their cards
+        for player_id in game.players:
+            if player_id != game.current_prompt_drawer:
+                try:
+                    user = await bot.fetch_user(player_id)
+                    await user.send(f"📜 **New Black Card**: {black_card}\n\nUse `.cah play <number>` to play a card from your hand!")
+                except Exception as e:
+                    logger.error(f"Failed to send notification to player {player_id}: {str(e)}")
     else:
         logger.warning("No black cards available")
         await ctx.send("No more black cards available!")
