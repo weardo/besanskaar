@@ -1,3 +1,4 @@
+"""Game management for Cards Against Humanity"""
 import random
 import logging
 from cards import load_black_cards, load_white_cards
@@ -5,6 +6,54 @@ from typing import Dict, Optional, List
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
+
+# Create singleton instance
+_instance = None
+
+class GameManager:
+    def __init__(self):
+        self.games: Dict[int, Game] = {}  # channel_id: Game
+        logger.info("GameManager initialized")
+
+    @classmethod
+    def get_instance(cls):
+        global _instance
+        if _instance is None:
+            _instance = cls()
+        return _instance
+
+    def create_game(self, channel_id: int):
+        """Create a new game in a channel"""
+        self.games[channel_id] = Game(channel_id)
+        logger.debug(f"Created new game in channel {channel_id}. Active games: {list(self.games.keys())}")
+        logger.info(f"Created new game in channel {channel_id}")
+
+    def get_game(self, channel_id: int) -> Optional['Game']:
+        """Get a game by channel ID"""
+        game = self.games.get(channel_id)
+        logger.debug(f"Getting game for channel {channel_id}. Found: {game is not None}")
+        return game
+
+    def is_game_active(self, channel_id: int) -> bool:
+        """Check if a game is active in a channel"""
+        is_active = channel_id in self.games
+        logger.debug(f"Checking if game is active in channel {channel_id}: {is_active}")
+        return is_active
+
+    async def add_player(self, channel_id: int, player_id: int, player_name: str, dm_channel) -> bool:
+        """Add a player to a game"""
+        game = self.get_game(channel_id)
+        if game:
+            return await game.add_player(player_id, player_name, dm_channel)
+        return False
+
+    def end_game(self, channel_id: int) -> bool:
+        """End a game in a channel"""
+        if channel_id in self.games:
+            del self.games[channel_id]
+            logger.info(f"Ended game in channel {channel_id}")
+            return True
+        return False
 
 class Game:
     def __init__(self, channel_id: int):
@@ -68,6 +117,25 @@ class Game:
         self.played_cards[player_id] = card
         logger.info(f"Player {player['name']} played card: {card}")
         return True
+
+    async def handle_played_card(self, player_id: int, card_index: int) -> bool:
+        """Handle a played card and check if all players have played"""
+        success = self.play_card(player_id, card_index)
+        if success:
+            # Check if all players except prompt drawer have played
+            active_players = len(self.players) - 1  # Excluding prompt drawer
+            cards_played = len(self.played_cards)
+
+            if cards_played == active_players:
+                # All players have played, send winner selection to prompt drawer
+                prompt_drawer = self.players[self.current_prompt_drawer]
+                dm_channel = prompt_drawer['dm_channel']
+                if dm_channel:
+                    from ui_components import send_winner_selection_dm
+                    await send_winner_selection_dm(dm_channel, self.channel_id, self.get_played_cards())
+
+        return success
+
 
     def start_round(self) -> Optional[str]:
         """Start a new round by drawing a black card"""
@@ -153,36 +221,4 @@ class Game:
                 self._cycle_prompt_drawer()
             logger.info(f"Player {player_name} left the game")
             return True
-        return False
-
-class GameManager:
-    def __init__(self):
-        self.games: Dict[int, Game] = {}  # channel_id: Game
-
-    def create_game(self, channel_id: int):
-        """Create a new game in a channel"""
-        self.games[channel_id] = Game(channel_id)
-        logger.info(f"Created new game in channel {channel_id}")
-
-    def get_game(self, channel_id: int) -> Optional[Game]:
-        """Get a game by channel ID"""
-        return self.games.get(channel_id)
-
-    def is_game_active(self, channel_id: int) -> bool:
-        """Check if a game is active in a channel"""
-        return channel_id in self.games
-
-    def end_game(self, channel_id: int) -> bool:
-        """End a game in a channel"""
-        if channel_id in self.games:
-            del self.games[channel_id]
-            logger.info(f"Ended game in channel {channel_id}")
-            return True
-        return False
-
-    async def add_player(self, channel_id: int, player_id: int, player_name: str, dm_channel) -> bool:
-        """Add a player to a game"""
-        game = self.get_game(channel_id)
-        if game:
-            return await game.add_player(player_id, player_name, dm_channel)
         return False

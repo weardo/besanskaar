@@ -18,8 +18,8 @@ import os
 import discord
 from discord.ext import commands
 import logging
-from game import GameManager
 from database import Database
+from game import GameManager
 from ui_components import GameStartView, CardSelectView, WinnerSelectView
 
 # Setup logging
@@ -33,9 +33,9 @@ intents.members = True
 intents.voice_states = True
 bot = commands.Bot(command_prefix=['.cah ', '!cah '], intents=intents)
 
-# Initialize game manager and database
-game_manager = GameManager()
+# Initialize database and get GameManager singleton instance
 db = Database()
+game_manager = GameManager.get_instance()
 
 @bot.event
 async def on_ready():
@@ -57,7 +57,13 @@ async def start_game(ctx):
         await ctx.send("A game is already in progress!")
         return
 
-    game_manager.create_game(ctx.channel.id)
+    # Debug output
+    channel_id = int(ctx.channel.id)  # Ensure channel_id is int
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Creating game in channel {channel_id} (type: {type(channel_id)})")
+
+    game_manager.create_game(channel_id)
+    logger.info(f"Active games after creation: {list(game_manager.games.keys())}")
 
     # Create and send embed with join button
     embed = discord.Embed(
@@ -65,9 +71,9 @@ async def start_game(ctx):
         description="Click the button below to join the game!\nMake sure you're in the voice channel.",
         color=discord.Color.green()
     )
-    view = GameStartView()
+    view = GameStartView(channel_id)
     await ctx.send(embed=embed, view=view)
-    db.log_game_start(ctx.channel.id, ctx.author.id)
+    db.log_game_start(channel_id, ctx.author.id)
 
 @bot.command(name='j', help='Join the current game')
 async def join_game(ctx):
@@ -80,10 +86,14 @@ async def join_game(ctx):
         await ctx.send("No game is currently active. Start one with `.cah s`")
         return
 
-    success = game_manager.add_player(ctx.channel.id, ctx.author.id, ctx.author.name)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Adding player to channel: {channel_id} (type: {type(channel_id)})")
+
+    success = game_manager.add_player(channel_id, ctx.author.id, ctx.author.name)
     if success:
         await ctx.send(f"{ctx.author.name} has joined the game!")
-        db.log_player_join(ctx.channel.id, ctx.author.id)
+        db.log_player_join(channel_id, ctx.author.id)
     else:
         await ctx.send("You're already in the game!")
 
@@ -94,7 +104,11 @@ async def draw_cards(ctx):
         await ctx.send("You need to stay in the voice channel to play!")
         return
 
-    game = game_manager.get_game(ctx.channel.id)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+    game = game_manager.get_game(channel_id)
     if not game:
         await ctx.send("No game is currently active!")
         return
@@ -130,16 +144,20 @@ async def play_card(ctx, card_number: int):
             await ctx.send("You need to stay in the voice channel to play!")
             return
 
-        game = game_manager.get_game(ctx.channel.id)
+        channel_id = int(ctx.channel.id)
+        logger.info(f"GameManager instance ID: {id(game_manager)}")
+        logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+        game = game_manager.get_game(channel_id)
         if not game:
             logger.debug(f"No active game in channel {ctx.channel.name}")
             await ctx.send("No game is currently active!")
             return
 
-        success = game.play_card(ctx.author.id, card_number - 1)
+        success = await game.handle_played_card(ctx.author.id, card_number - 1)
         if success:
             await ctx.send(f"{ctx.author.name} has played their card!")
-            db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
+            db.log_card_play(channel_id, ctx.author.id, card_number)
         else:
             logger.debug(f"Failed to play card {card_number} for user {ctx.author.name}")
             await ctx.send("Invalid card number or it's not your turn!")
@@ -158,7 +176,11 @@ async def show_played_cards(ctx):
         await ctx.send("You need to be in a voice channel to play!")
         return
 
-    game = game_manager.get_game(ctx.channel.id)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+    game = game_manager.get_game(channel_id)
     if not game:
         logger.debug(f"No active game in channel {ctx.channel.name}")
         await ctx.send("No game is currently active!")
@@ -192,7 +214,11 @@ async def select_winner(ctx, card_number: int):
             await ctx.send("You need to be in a voice channel to play!")
             return
 
-        game = game_manager.get_game(ctx.channel.id)
+        channel_id = int(ctx.channel.id)
+        logger.info(f"GameManager instance ID: {id(game_manager)}")
+        logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+        game = game_manager.get_game(channel_id)
         if not game:
             logger.debug(f"No active game in channel {ctx.channel.name}")
             await ctx.send("No game is currently active!")
@@ -235,7 +261,11 @@ async def select_winner(ctx, card_number: int):
 @bot.command(name='score', help='Show current scores')
 async def show_scores(ctx):
     """Show current game scores"""
-    game = game_manager.get_game(ctx.channel.id)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+    game = game_manager.get_game(channel_id)
     if not game:
         await ctx.send("No game is currently active!")
         return
@@ -247,7 +277,11 @@ async def show_scores(ctx):
 @bot.command(name='end', help='End the current game')
 async def end_game(ctx):
     """End the current game"""
-    game = game_manager.get_game(ctx.channel.id)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Ending game in channel: {channel_id} (type: {type(channel_id)})")
+
+    game = game_manager.get_game(channel_id)
     if not game:
         await ctx.send("No game is currently active!")
         return
@@ -261,9 +295,9 @@ async def end_game(ctx):
     if winner:
         await ctx.send(f"\n🎉 **WINNER**: {winner['name']} with {winner['score']} points! 🎉")
 
-    if game_manager.end_game(ctx.channel.id):
+    if game_manager.end_game(channel_id):
         await ctx.send("Game ended! Thanks for playing!")
-        db.log_game_end(ctx.channel.id)
+        db.log_game_end(channel_id)
     else:
         await ctx.send("Error ending game!")
 
@@ -309,7 +343,11 @@ async def draw_prompt(ctx):
         await ctx.send("You need to be in a voice channel to play!")
         return
 
-    game = game_manager.get_game(ctx.channel.id)
+    channel_id = int(ctx.channel.id)
+    logger.info(f"GameManager instance ID: {id(game_manager)}")
+    logger.info(f"Getting game from channel: {channel_id} (type: {type(channel_id)})")
+
+    game = game_manager.get_game(channel_id)
     if not game:
         logger.debug(f"No active game in channel {ctx.channel.name}")
         await ctx.send("No game is currently active!")
