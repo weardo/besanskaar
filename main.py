@@ -146,7 +146,7 @@ async def draw_cards(ctx):
             await ctx.send("You need to stay in the voice channel to play!")
             return
         game = game_manager.get_game(ctx.channel.id)
-        
+
     if not game:
         await ctx.send("No game is currently active!")
         return
@@ -155,7 +155,7 @@ async def draw_cards(ctx):
     if cards:
         cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
         await ctx.author.send(f"Your cards:\n{cards_text}")
-        
+
         # If in a server channel, also send confirmation there
         if not isinstance(ctx.channel, discord.DMChannel):
             await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
@@ -274,7 +274,7 @@ async def select_winner(ctx, card_number: int):
         if not game:
             await ctx.send("No game is currently active!")
             return
-            
+
         if ctx.author.id != game.current_prompt_drawer:
             await ctx.send("Only the current prompt drawer can select the winning card!")
             return
@@ -292,7 +292,7 @@ async def select_winner(ctx, card_number: int):
         if game.select_winner(winning_player_id):
             # First announce the winner
             await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
-            
+
             # Also announce to the game channel if command was in DM
             if isinstance(ctx.channel, discord.DMChannel) and channel_id:
                 try:
@@ -315,6 +315,11 @@ async def select_winner(ctx, card_number: int):
             # Announce next prompt drawer
             next_drawer = game.players[game.current_prompt_drawer]['name']
             await ctx.send(f"\n👉 {next_drawer} will draw the next black card!")
+            try:
+                user = await bot.fetch_user(game.current_prompt_drawer)
+                await user.send(f"It's your turn to draw the next black card! Use `.cah p`")
+            except Exception as e:
+                logger.error(f"Failed to notify next prompt drawer {game.current_prompt_drawer}: {str(e)}")
 
             # Notify players about their topped-up cards via DM
             for player_id in game.players:
@@ -432,7 +437,7 @@ async def draw_prompt(ctx):
                 game = g
                 channel_id = c_id
                 break
-        
+
         # In DM, check if this player is the prompt drawer
         if game and game.current_prompt_drawer != ctx.author.id:
             await ctx.send("Only the current prompt drawer can draw a black card!")
@@ -445,7 +450,7 @@ async def draw_prompt(ctx):
             return
         game = game_manager.get_game(ctx.channel.id)
         channel_id = ctx.channel.id
-        
+
         # In server channel, check if this player is the prompt drawer
         if game and game.current_prompt_drawer != ctx.author.id:
             await ctx.send(f"Only the current prompt drawer ({game.players[game.current_prompt_drawer]['name']}) can draw a black card!")
@@ -463,7 +468,7 @@ async def draw_prompt(ctx):
     black_card = game.start_round()
     if black_card:
         logger.info(f"Drew black card: {black_card}")
-        
+
         # Send to the game channel if command was in DM
         if isinstance(ctx.channel, discord.DMChannel) and channel_id:
             try:
@@ -472,9 +477,9 @@ async def draw_prompt(ctx):
                     await game_channel.send(f"📜 **Black Card**: {black_card}")
             except Exception as e:
                 logger.error(f"Failed to send black card to game channel: {str(e)}")
-        
+
         await ctx.send(f"📜 **Black Card**: {black_card}")
-        
+
         # Notify all other players to play their cards
         for player_id in game.players:
             if player_id != game.current_prompt_drawer:
@@ -608,13 +613,13 @@ async def play_custom_answer(ctx, *, answer: str):
             # Get prompt drawer and send them a DM with played cards/answers
             prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
             played_cards = game.get_played_cards(include_custom=True)  # Include custom flag but not player names
-            
+
             # Format cards, marking custom answers with a ✏️ emoji
             cards_text = []
             for i, card_info in enumerate(played_cards):
                 prefix = "✏️ " if card_info.get('is_custom', False) else ""
                 cards_text.append(f"{i+1}. {prefix}{card_info['text']}")
-            
+
             cards_text = "\n".join(cards_text)
 
             dm_text = (

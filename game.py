@@ -110,6 +110,9 @@ class Game:
 
         self.current_prompt_drawer = self.player_order[next_index]
         logger.debug(f"New prompt drawer: {self.players[self.current_prompt_drawer]['name']}")
+        
+        # Flag this player as needing notification
+        self.players[self.current_prompt_drawer]['needs_prompt_notification'] = True
 
     def update_nsfw_setting(self, allow_nsfw: bool) -> bool:
         """Update NSFW setting and refresh all cards"""
@@ -184,11 +187,13 @@ class Game:
                 'name': player_name,
                 'cards': [],
                 'score': 0,
-                'dm_mode': True  # DM mode is now always enabled
+                'dm_mode': True,  # DM mode is now always enabled
+                'needs_prompt_notification': False  # Flag for prompt drawer notification
             }
             self.player_order.append(player_id)
             if len(self.player_order) == 1:  # First player becomes first prompt drawer
                 self.current_prompt_drawer = player_id
+                self.players[player_id]['needs_prompt_notification'] = True  # First player needs notification
             return True
         return False
 
