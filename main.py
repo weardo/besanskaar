@@ -49,7 +49,7 @@ async def on_ready():
     # Log startup status
     logger.info("Bot is ready to play Cards Against Humanity!")
     logger.info("Use '.cah s' to start a new game or '.cah r' to see all commands")
-    
+
     # Check for any active games with players who need prompt notification
     for channel_id, game in game_manager.games.items():
         for player_id, player in game.players.items():
@@ -159,10 +159,10 @@ async def start_game(ctx, *args):
 
     await ctx.send(embed=embed, view=view)
     db.log_game_start(ctx.channel.id, ctx.author.id)
-    
+
     # Add the creator as first player
     game_manager.add_player(ctx.channel.id, ctx.author.id, ctx.author.name)
-    
+
     # Notify the first prompt drawer (which is the first player) that it's their turn
     game = game_manager.get_game(ctx.channel.id)
     if game and game.current_prompt_drawer == ctx.author.id:
@@ -192,7 +192,7 @@ async def join_game(ctx):
         # Get the game to check if this player is the prompt drawer
         game = game_manager.get_game(ctx.channel.id)
         is_prompt_drawer = game and game.current_prompt_drawer == ctx.author.id
-        
+
         # Create DM welcome message with buttons
         dm_embed = Embed(
             title="🃏 Welcome to Cards Against Humanity!", 
@@ -206,7 +206,7 @@ async def join_game(ctx):
         )
 
         dm_view = View(timeout=None)
-        
+
         if is_prompt_drawer:
             # If this player is the prompt drawer, show a button to draw a black card
             draw_prompt_button = Button(
@@ -215,7 +215,7 @@ async def join_game(ctx):
                 emoji="🎲", 
                 custom_id="draw_black_card"
             )
-            
+
             async def draw_prompt_callback(interaction):
                 try:
                     ctx = await bot.get_context(interaction.message, cls=commands.Context)
@@ -224,10 +224,10 @@ async def join_game(ctx):
                 except Exception as e:
                     logger.error(f"Error in draw prompt button: {str(e)}")
                     await interaction.response.send_message("An error occurred. Please try typing `.cah p` instead.", ephemeral=True)
-                    
+
             draw_prompt_button.callback = draw_prompt_callback
             dm_view.add_item(draw_prompt_button)
-            
+
             # Also send a separate notification
             await notify_prompt_drawer(ctx.author, ctx.channel.name)
         else:
@@ -244,7 +244,7 @@ async def join_game(ctx):
                     # Create a proper context with the right user and channel info
                     ctx = await bot.get_context(interaction.message, cls=commands.Context)
                     ctx.author = interaction.user  # Set correct author for user check
-                    
+
                     # Call the draw_cards function with the properly set context
                     await draw_cards(ctx)
                 except Exception as e:
@@ -272,7 +272,7 @@ async def draw_cards(ctx):
                 game = g
                 player_found = True
                 break
-        
+
         if not player_found:
             await ctx.send("You're not currently in any active game! Join a game first with `.cah j` in a server channel.")
             return
@@ -281,13 +281,13 @@ async def draw_cards(ctx):
         if not ctx.author.voice:
             await ctx.send("You need to stay in the voice channel to play!")
             return
-        
+
         # Check if game exists in this channel
         game = game_manager.get_game(ctx.channel.id)
         if not game:
             await ctx.send("No game is currently active in this channel! Start one with `.cah s`")
             return
-            
+
         # Check if player is in the game
         if ctx.author.id not in game.players:
             await ctx.send("You're not in this game! Join first with `.cah j`")
@@ -299,7 +299,7 @@ async def draw_cards(ctx):
         if not cards:
             await ctx.send("You already have a full hand of cards!")
             return
-            
+
         # Create a fancy card display
         embed = Embed(
             title="🃏 Your Cards", 
@@ -472,20 +472,20 @@ async def notify_prompt_drawer(user, channel_name=None):
         description="It's your turn to draw a black card for the next round!", 
         color=Color.purple()
     )
-    
+
     if channel_name:
         embed.add_field(
             name="Game Channel", 
             value=f"You're the prompt drawer in #{channel_name}", 
             inline=False
         )
-    
+
     embed.add_field(
         name="What to Do", 
         value="Click the button below to draw a black card!", 
         inline=False
     )
-    
+
     # Create a view with a button to draw the black card
     view = View(timeout=None)
     draw_button = Button(
@@ -494,15 +494,15 @@ async def notify_prompt_drawer(user, channel_name=None):
         emoji="🎲", 
         custom_id="draw_black_card"
     )
-    
+
     async def draw_callback(interaction):
         ctx = await bot.get_context(interaction.message, cls=commands.Context)
         ctx.author = interaction.user
         await draw_prompt(ctx)
-        
+
     draw_button.callback = draw_callback
     view.add_item(draw_button)
-    
+
     await user.send(embed=embed, view=view)
     logger.info(f"Sent prompt drawer notification to {user.name}")
 
@@ -990,26 +990,26 @@ async def draw_prompt(ctx):
             description="A new black card has been drawn!", 
             color=Color.dark_grey()
         )
-        
+
         # Make the black card stand out
         embed.add_field(
             name="📜 Black Card", 
             value=f"**{black_card}**", 
             inline=False
         )
-        
+
         embed.add_field(
             name="👑 Prompt Drawer", 
             value=ctx.author.display_name, 
             inline=True
         )
-        
+
         embed.add_field(
             name="⏭️ Next Step", 
             value="Other players must submit their white cards", 
             inline=True
         )
-        
+
         embed.set_footer(text="White card answers will be sent via DM")
 
         # Send to the game channel if command was in DM
@@ -1028,25 +1028,25 @@ async def draw_prompt(ctx):
             if player_id != game.current_prompt_drawer:
                 try:
                     user = await bot.fetch_user(player_id)
-                    
+
                     player_embed = Embed(
                         title="🎮 Your Turn to Play", 
                         description=f"A new black card has been drawn!", 
                         color=Color.dark_grey()
                     )
-                    
+
                     player_embed.add_field(
                         name="📜 Black Card", 
                         value=f"**{black_card}**", 
                         inline=False
                     )
-                    
+
                     player_embed.add_field(
                         name="Instructions", 
                         value="Use the buttons below your cards to play, or submit a custom answer!", 
                         inline=False
                     )
-                    
+
                     # Create a view with draw cards button
                     player_view = View(timeout=None)
                     draw_button = Button(
@@ -1055,19 +1055,19 @@ async def draw_prompt(ctx):
                         emoji="🃏", 
                         custom_id="view_my_cards"
                     )
-                    
+
                     custom_button = Button(
                         style=ButtonStyle.blurple, 
                         label="Submit Custom Answer", 
                         emoji="✏️", 
                         custom_id="custom_answer_direct"
                     )
-                    
+
                     async def view_cards_callback(interaction):
                         ctx = await bot.get_context(interaction.message, cls=commands.Context)
                         ctx.author = interaction.user
                         await draw_cards(ctx)
-                    
+
                     async def custom_answer_callback(interaction):
                         custom_modal = discord.ui.Modal(title="Your Custom Answer")
                         custom_text = discord.ui.TextInput(
@@ -1089,13 +1089,13 @@ async def draw_prompt(ctx):
 
                         custom_modal.on_submit = modal_callback
                         await interaction.response.send_modal(custom_modal)
-                    
+
                     draw_button.callback = view_cards_callback
                     custom_button.callback = custom_answer_callback
-                    
+
                     player_view.add_item(draw_button)
                     player_view.add_item(custom_button)
-                    
+
                     await user.send(embed=player_embed, view=player_view)
                 except Exception as e:
                     logger.error(f"Failed to send notification to player {player_id}: {str(e)}")
