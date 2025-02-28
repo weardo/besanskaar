@@ -1,75 +1,947 @@
 {
     "cards": [
         {
-            "text": "A tiny horse.",
+            "text": "Shashi Tharoor",
             "nsfw": false
         },
         {
-            "text": "Being on fire.",
+            "text": "Saying \"That's relatable\"",
             "nsfw": false
         },
         {
-            "text": "Puppies!",
+            "text": "The return of Abhijeet Sawant",
             "nsfw": false
         },
         {
-            "text": "A foul mouth.",
+            "text": "Achhe Din",
             "nsfw": false
         },
         {
-            "text": "The inevitable heat death of the universe.",
+            "text": "Modi the messiah",
             "nsfw": false
         },
         {
-            "text": "Free samples.",
+            "text": "South Delhi cougars",
             "nsfw": false
         },
         {
-            "text": "Getting married, having a few kids, buying some stuff, retiring to Florida, and dying.",
+            "text": "Singing 'Hum Dekhenge'",
             "nsfw": false
         },
         {
-            "text": "The Force.",
+            "text": "The art of living",
             "nsfw": false
         },
         {
-            "text": "Destroying the evidence.",
+            "text": "An influencer with issues",
             "nsfw": false
         },
         {
-            "text": "A disappointing birthday party.",
+            "text": "All of my ex-boyfriends",
             "nsfw": false
         },
         {
-            "text": "A moment of silence.",
+            "text": "Bad puns",
             "nsfw": false
         },
         {
-            "text": "The real meaning of Christmas.",
+            "text": "Saffron",
             "nsfw": false
         },
         {
-            "text": "An M16 assault rifle.",
+            "text": "Being rich but acting broke",
             "nsfw": false
         },
         {
-            "text": "The American Dream.",
+            "text": "Stuffing cash down my blouse",
             "nsfw": false
         },
         {
-            "text": "Not wearing pants.",
+            "text": "Traumatising children",
             "nsfw": false
         },
         {
-            "text": "A balanced breakfast.",
+            "text": "Fabindia",
             "nsfw": false
         },
         {
-            "text": "BATMAN!!!",
+            "text": "A perfectly round roti",
             "nsfw": false
         },
         {
-            "text": "Science.",
+            "text": "Attention from a pretty air hostess",
+            "nsfw": false
+        },
+        {
+            "text": "Gobi Manchurian with a dash of diarrhoea",
+            "nsfw": false
+        },
+        {
+            "text": "A Sukho Thai massage",
+            "nsfw": false
+        },
+        {
+            "text": "Ignoring all of South India",
+            "nsfw": false
+        },
+        {
+            "text": "The morning Azaan",
+            "nsfw": false
+        },
+        {
+            "text": "Convent school spankings",
+            "nsfw": false
+        },
+        {
+            "text": "Gaslighting",
+            "nsfw": false
+        },
+        {
+            "text": "The practice of Sati",
+            "nsfw": false
+        },
+        {
+            "text": "Rubbing my magic lamp",
+            "nsfw": false
+        },
+        {
+            "text": "The silent fart",
+            "nsfw": false
+        },
+        {
+            "text": "Cousins from Delhi",
+            "nsfw": false
+        },
+        {
+            "text": "Tropical poverty",
+            "nsfw": false
+        },
+        {
+            "text": "The complete man",
+            "nsfw": false
+        },
+        {
+            "text": "Darjeeling momos",
+            "nsfw": false
+        },
+        {
+            "text": "Blaming Nehru",
+            "nsfw": false
+        },
+        {
+            "text": "Backstreet Boys",
+            "nsfw": false
+        },
+        {
+            "text": "Exasperating ferrago of distortions",
+            "nsfw": false
+        },
+        {
+            "text": "Nuns with guns",
+            "nsfw": false
+        },
+        {
+            "text": "Crippling anxiety",
+            "nsfw": false
+        },
+        {
+            "text": "Neha from HR",
+            "nsfw": false
+        },
+        {
+            "text": "Dank memes",
+            "nsfw": false
+        },
+        {
+            "text": "Sanskaar",
+            "nsfw": false
+        },
+        {
+            "text": "Tender caress of the neighborhood cow",
+            "nsfw": false
+        },
+        {
+            "text": "The oncoming of diabetes",
+            "nsfw": false
+        },
+        {
+            "text": "Made in Indian hakka noodles",
+            "nsfw": false
+        },
+        {
+            "text": "Snuggling with Anu Malik",
+            "nsfw": false
+        },
+        {
+            "text": "Finally settling down",
+            "nsfw": false
+        },
+        {
+            "text": "Squatting on the Indian toilet",
+            "nsfw": false
+        },
+        {
+            "text": "Being choked with a mangalsutra",
+            "nsfw": false
+        },
+        {
+            "text": "Auroville hippies",
+            "nsfw": false
+        },
+        {
+            "text": "Singing lucky Ali songs",
+            "nsfw": false
+        },
+        {
+            "text": "An overweight PT teacher",
+            "nsfw": false
+        },
+        {
+            "text": "Shaktimaan",
+            "nsfw": false
+        },
+        {
+            "text": "Calling off your engagement",
+            "nsfw": false
+        },
+        {
+            "text": "Drunk woo-hoo girls",
+            "nsfw": false
+        },
+        {
+            "text": "Gandhigiri",
+            "nsfw": false
+        },
+        {
+            "text": "Low standards of entertainment",
+            "nsfw": false
+        },
+        {
+            "text": "Spooning with your RAC seat partner",
+            "nsfw": false
+        },
+        {
+            "text": "Shifting to Goa",
+            "nsfw": false
+        },
+        {
+            "text": "The one and only Adnan Sami",
+            "nsfw": false
+        },
+        {
+            "text": "Matching with Rahul Gandhi on Tinder",
+            "nsfw": false
+        },
+        {
+            "text": "Skinny dipping in the Ganga",
+            "nsfw": false
+        },
+        {
+            "text": "Acidity",
+            "nsfw": false
+        },
+        {
+            "text": "Spending all my money",
+            "nsfw": false
+        },
+        {
+            "text": "A loyal Shiv Sainik",
+            "nsfw": false
+        },
+        {
+            "text": "The Titanic sex scene",
+            "nsfw": false
+        },
+        {
+            "text": "Daler Mehndi's browser history",
+            "nsfw": false
+        },
+        {
+            "text": "Instagramming everything",
+            "nsfw": false
+        },
+        {
+            "text": "Applying for Canada PR",
+            "nsfw": false
+        },
+        {
+            "text": "Sending memes to my therapist",
+            "nsfw": false
+        },
+        {
+            "text": "Dodging cow dung",
+            "nsfw": false
+        },
+        {
+            "text": "My vaccine selfie",
+            "nsfw": false
+        },
+        {
+            "text": "The only hot chick in the office",
+            "nsfw": false
+        },
+        {
+            "text": "Fake accents",
+            "nsfw": false
+        },
+        {
+            "text": "An Ed Hardy t-shirt",
+            "nsfw": false
+        },
+        {
+            "text": "Chacha Chaudhary comics",
+            "nsfw": false
+        },
+        {
+            "text": "The urge to leave India immediately",
+            "nsfw": false
+        },
+        {
+            "text": "Consent",
+            "nsfw": false
+        },
+        {
+            "text": "Yogi Adityanath as PM",
+            "nsfw": false
+        },
+        {
+            "text": "Gandhigiri",
+            "nsfw": false
+        },
+        {
+            "text": "Low standards of entertainment",
+            "nsfw": false
+        },
+        {
+            "text": "The khaki knicker gang",
+            "nsfw": false
+        },
+        {
+            "text": "Green chutney",
+            "nsfw": false
+        },
+        {
+            "text": "Javed Akhtar's poetry",
+            "nsfw": false
+        },
+        {
+            "text": "Stolen hotel shampoos",
+            "nsfw": false
+        },
+        {
+            "text": "Getting nostalgic about the 90s",
+            "nsfw": false
+        },
+        {
+            "text": "Tembrahm purity",
+            "nsfw": false
+        },
+        {
+            "text": "The perfect Maggi recipe",
+            "nsfw": false
+        },
+        {
+            "text": "The Goa Plan",
+            "nsfw": false
+        },
+        {
+            "text": "Mediocre stand-up comedy",
+            "nsfw": false
+        },
+        {
+            "text": "Savita Bhabhi",
+            "nsfw": false
+        },
+        {
+            "text": "Unsolicited advice",
+            "nsfw": false
+        },
+        {
+            "text": "A sardar joke",
+            "nsfw": false
+        },
+        {
+            "text": "Third-world upper-cast problems",
+            "nsfw": false
+        },
+        {
+            "text": "Milind Soman the Greek God",
+            "nsfw": false
+        },
+        {
+            "text": "JNU sloganeering",
+            "nsfw": false
+        },
+        {
+            "text": "A Complan Boy",
+            "nsfw": false
+        },
+        {
+            "text": "Scams of the Congress era",
+            "nsfw": false
+        },
+        {
+            "text": "Vijay Mallya's debt",
+            "nsfw": false
+        },
+        {
+            "text": "A skull cap",
+            "nsfw": false
+        },
+        {
+            "text": "Doing Master's abroad",
+            "nsfw": false
+        },
+        {
+            "text": "The Aryan genepool",
+            "nsfw": false
+        },
+        {
+            "text": "A mild heart attack",
+            "nsfw": false
+        },
+        {
+            "text": "Vegetarian biryani",
+            "nsfw": false
+        },
+        {
+            "text": "Immigrating to Pakistan",
+            "nsfw": false
+        },
+        {
+            "text": "My chacha's cousin's fufa's fitness-trainer's nephew's wife",
+            "nsfw": false
+        },
+        {
+            "text": "A call from Amit Shah",
+            "nsfw": false
+        },
+        {
+            "text": "Kids",
+            "nsfw": false
+        },
+        {
+            "text": "A slim gujju boy",
+            "nsfw": false
+        },
+        {
+            "text": "A degree in engineering",
+            "nsfw": false
+        },
+        {
+            "text": "Saying no to second helpings",
+            "nsfw": false
+        },
+        {
+            "text": "Gujarati cuisine",
+            "nsfw": false
+        },
+        {
+            "text": "Garlic breath",
+            "nsfw": false
+        },
+        {
+            "text": "A high-pressure bum gun",
+            "nsfw": false
+        },
+        {
+            "text": "Sonu Nigam's next movie",
+            "nsfw": false
+        },
+        {
+            "text": "Coronavirus",
+            "nsfw": false
+        },
+        {
+            "text": "Burning a bus",
+            "nsfw": false
+        },
+        {
+            "text": "Being proposed to by Arijit Singh",
+            "nsfw": false
+        },
+        {
+            "text": "Linking Aadhaar",
+            "nsfw": false
+        },
+        {
+            "text": "Haldi-stained Tupperware",
+            "nsfw": false
+        },
+        {
+            "text": "Hectic sangeet choreograhpy",
+            "nsfw": false
+        },
+        {
+            "text": "Playing Antakshari on the bus",
+            "nsfw": false
+        },
+        {
+            "text": "Hrithik Roshan's other thumb",
+            "nsfw": false
+        },
+        {
+            "text": "Uttar Pradesh Police",
+            "nsfw": false
+        },
+        {
+            "text": "The marwari school of thought",
+            "nsfw": false
+        },
+        {
+            "text": "Pretending to be straight",
+            "nsfw": false
+        },
+        {
+            "text": "Getting adopted by Angelina Jolie",
+            "nsfw": false
+        },
+        {
+            "text": "Electing a dictator",
+            "nsfw": false
+        },
+        {
+            "text": "An argument with Arnab",
+            "nsfw": false
+        },
+        {
+            "text": "Chanting \"SACHIIIIN... SACHIN!\"",
+            "nsfw": false
+        },
+        {
+            "text": "A new profile picture",
+            "nsfw": false
+        },
+        {
+            "text": "Rajinikanth",
+            "nsfw": false
+        },
+        {
+            "text": "A Chetan Bhagat Paperback",
+            "nsfw": false
+        },
+        {
+            "text": "A slum-view apartment",
+            "nsfw": false
+        },
+        {
+            "text": "A Jain foodie",
+            "nsfw": false
+        },
+        {
+            "text": "My faminine side",
+            "nsfw": false
+        },
+        {
+            "text": "Murdering pigeons",
+            "nsfw": false
+        },
+        {
+            "text": "Our lord and saviour, Akshay Kumar",
+            "nsfw": false
+        },
+        {
+            "text": "An unemployed South Bombay kid",
+            "nsfw": false
+        },
+        {
+            "text": "Adani",
+            "nsfw": false
+        },
+        {
+            "text": "Winning Bihar elections",
+            "nsfw": false
+        },
+        {
+            "text": "Asking for extra szechuan sauce",
+            "nsfw": false
+        },
+        {
+            "text": "Forgetting to call your mother",
+            "nsfw": false
+        },
+        {
+            "text": "Manmohan Singh's wasted potential",
+            "nsfw": false
+        },
+        {
+            "text": "Suddently breaking out into a bhajan",
+            "nsfw": false
+        },
+        {
+            "text": "Burping to establish dominance",
+            "nsfw": false
+        },
+        {
+            "text": "A plastic bag full of plastic bags",
+            "nsfw": false
+        },
+        {
+            "text": "The Kashmir issue",
+            "nsfw": false
+        },
+        {
+            "text": "The East India Company",
+            "nsfw": false
+        },
+        {
+            "text": "That annoying ukulele friend",
+            "nsfw": false
+        },
+        {
+            "text": "Fair and Lovely",
+            "nsfw": false
+        },
+        {
+            "text": "My suicidal tendency",
+            "nsfw": false
+        },
+        {
+            "text": "An IITian",
+            "nsfw": false
+        },
+        {
+            "text": "ICSE snobs",
+            "nsfw": false
+        },
+        {
+            "text": "Cards vs Sanskaar",
+            "nsfw": false
+        },
+        {
+            "text": "Arranged marriage",
+            "nsfw": false
+        },
+        {
+            "text": "Urban Naxals",
+            "nsfw": false
+        },
+        {
+            "text": "A commie from Kolkata",
+            "nsfw": false
+        },
+        {
+            "text": "A middle-class mindset",
+            "nsfw": false
+        },
+        {
+            "text": "Underdeveloped social skills",
+            "nsfw": false
+        },
+        {
+            "text": "Feeling lonely",
+            "nsfw": false
+        },
+        {
+            "text": "Fasting unto death",
+            "nsfw": false
+        },
+        {
+            "text": "Flirting with Alexa",
+            "nsfw": false
+        },
+        {
+            "text": "Premature balding",
+            "nsfw": false
+        },
+        {
+            "text": "Statue of Unity",
+            "nsfw": false
+        },
+        {
+            "text": "Rigging EVMs",
+            "nsfw": false
+        },
+        {
+            "text": "Being Salman's driver",
+            "nsfw": false
+        },
+        {
+            "text": "A stable government job",
+            "nsfw": false
+        },
+        {
+            "text": "A 2BHK with brokerage",
+            "nsfw": false
+        },
+        {
+            "text": "Spotify Premium",
+            "nsfw": false
+        },
+        {
+            "text": "Nepo babies",
+            "nsfw": false
+        },
+        {
+            "text": "Selling my kidney",
+            "nsfw": false
+        },
+        {
+            "text": "A token white guy",
+            "nsfw": false
+        },
+        {
+            "text": "A solo trip to Kasol",
+            "nsfw": false
+        },
+        {
+            "text": "Quoting Sholay",
+            "nsfw": false
+        },
+        {
+            "text": "Crappy WhatsApp forwards",
+            "nsfw": false
+        },
+        {
+            "text": "Investing in mutual funds",
+            "nsfw": false
+        },
+        {
+            "text": "The Great Khali's protein milkshake",
+            "nsfw": false
+        },
+        {
+            "text": "My dazzling dance moves",
+            "nsfw": false
+        },
+        {
+            "text": "The Sindhi aesthetic",
+            "nsfw": false
+        },
+        {
+            "text": "Telling my sibling they're adopted",
+            "nsfw": false
+        },
+        {
+            "text": "Sweating all the time",
+            "nsfw": false
+        },
+        {
+            "text": "A Nigerian prince",
+            "nsfw": false
+        },
+        {
+            "text": "Pointless primetime debates",
+            "nsfw": false
+        },
+        {
+            "text": "Building more temples",
+            "nsfw": false
+        },
+        {
+            "text": "Starting every sentence with \"Back in my day...\"",
+            "nsfw": false
+        },
+        {
+            "text": "Going for Vipassana",
+            "nsfw": false
+        },
+        {
+            "text": "My radicalized parents",
+            "nsfw": false
+        },
+        {
+            "text": "A roadies audition",
+            "nsfw": false
+        },
+        {
+            "text": "A very Sundar Pichai",
+            "nsfw": false
+        },
+        {
+            "text": "Doing Chaiyya Chaiyya on the train",
+            "nsfw": false
+        },
+        {
+            "text": "An overly attached Liverpool fanboy",
+            "nsfw": false
+        },
+        {
+            "text": "Pooping in the open",
+            "nsfw": false
+        },
+        {
+            "text": "A black buck",
+            "nsfw": false
+        },
+        {
+            "text": "Stalking on Facebook",
+            "nsfw": false
+        },
+        {
+            "text": "Having no motivation",
+            "nsfw": false
+        },
+        {
+            "text": "Dancing in the Swiss Alps",
+            "nsfw": false
+        },
+        {
+            "text": "Old Monk and Coke",
+            "nsfw": false
+        },
+        {
+            "text": "Regretting my life choices",
+            "nsfw": false
+        },
+        {
+            "text": "A Rendezvous with Simi Garewal",
+            "nsfw": false
+        },
+        {
+            "text": "Mercury in retrograde",
+            "nsfw": false
+        },
+        {
+            "text": "Tantric fantasies",
+            "nsfw": false
+        },
+        {
+            "text": "A pilgrimage to McDonald's",
+            "nsfw": false
+        },
+        {
+            "text": "Monetizing opression",
+            "nsfw": false
+        },
+        {
+            "text": "Paying GST like a good boy",
+            "nsfw": false
+        },
+        {
+            "text": "My CA",
+            "nsfw": false
+        },
+        {
+            "text": "An incompetent bhakt",
+            "nsfw": false
+        },
+        {
+            "text": "The king of good times",
+            "nsfw": false
+        },
+        {
+            "text": "That friend from Indore",
+            "nsfw": false
+        },
+        {
+            "text": "Going back into my closet",
+            "nsfw": false
+        },
+        {
+            "text": "Drinking single-malt in a steel glass",
+            "nsfw": false
+        },
+        {
+            "text": "Adding an extra Sri before your name",
+            "nsfw": false
+        },
+        {
+            "text": "Mob justice",
+            "nsfw": false
+        },
+        {
+            "text": "Swearing like Nawazuddin does",
+            "nsfw": false
+        },
+        {
+            "text": "Feminism",
+            "nsfw": false
+        },
+        {
+            "text": "A microdose of Patriarchy",
+            "nsfw": false
+        },
+        {
+            "text": "My long term situationship",
+            "nsfw": false
+        },
+        {
+            "text": "A gang of orphans",
+            "nsfw": false
+        },
+        {
+            "text": "A fragile Indian ego",
+            "nsfw": false
+        },
+        {
+            "text": "Kejriwal's promises",
+            "nsfw": false
+        },
+        {
+            "text": "Karma",
+            "nsfw": false
+        },
+        {
+            "text": "Sucking up to America",
+            "nsfw": false
+        },
+        {
+            "text": "The common man",
+            "nsfw": false
+        },
+        {
+            "text": "Female infanticide",
+            "nsfw": false
+        },
+        {
+            "text": "Stoner references",
+            "nsfw": false
+        },
+        {
+            "text": "The Bengal Famine",
+            "nsfw": false
+        },
+        {
+            "text": "A pack of Classic Milds",
+            "nsfw": false
+        },
+        {
+            "text": "Hiding tummy flab",
+            "nsfw": false
+        },
+        {
+            "text": "Being single",
+            "nsfw": false
+        },
+        {
+            "text": "Himmesh Reshammiya's confidence",
+            "nsfw": false
+        },
+        {
+            "text": "Prateek Kuhad fangirls",
+            "nsfw": false
+        },
+        {
+            "text": "Lots of poppadoms",
+            "nsfw": false
+        },
+        {
+            "text": "A one-night stand in Tihar Jail",
+            "nsfw": false
+        },
+        {
+            "text": "Getting used to fascism",
+            "nsfw": false
+        },
+        {
+            "text": "Lessons from the Bhagavad Gita",
+            "nsfw": false
+        },
+        {
+            "text": "Overgrown thigh hair",
+            "nsfw": false
+        },
+        {
+            "text": "Pudin Hara addicts",
+            "nsfw": false
+        },
+        {
+            "text": "Ajay Devgan's dentist",
+            "nsfw": false
+        },
+        {
+            "text": "Liberal logic",
             "nsfw": false
         }
     ]

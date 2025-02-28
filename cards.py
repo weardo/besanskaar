@@ -5,7 +5,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CardManager:
+
     def __init__(self, allow_nsfw: bool = False, database=None):
         self.allow_nsfw = allow_nsfw
         self.cards_dir = "data/cards"
@@ -30,23 +32,32 @@ class CardManager:
 
         # Load approved custom cards if database is available
         if self.database:
-            custom_black = self.database.get_custom_cards('black', only_approved=True)
-            custom_white = self.database.get_custom_cards('white', only_approved=True)
+            custom_black = self.database.get_custom_cards('black',
+                                                          only_approved=True)
+            custom_white = self.database.get_custom_cards('white',
+                                                          only_approved=True)
 
             # Add custom cards to the deck
-            self.black_cards.extend([{'text': text, 'nsfw': False, 'pick': 1} 
-                                   for text in custom_black])
-            self.white_cards.extend([{'text': text, 'nsfw': False} 
-                                   for text in custom_white])
+            self.black_cards.extend([{
+                'text': text,
+                'nsfw': False,
+                'pick': 1
+            } for text in custom_black])
+            self.white_cards.extend([{
+                'text': text,
+                'nsfw': False
+            } for text in custom_white])
 
         # Remove any cards that have been marked as removed
-        if self.database:
-            self.black_cards = [card for card in self.black_cards 
-                              if not self.database.is_card_removed(card['text'], 'black')]
-            self.white_cards = [card for card in self.white_cards 
-                              if not self.database.is_card_removed(card['text'], 'white')]
+        # if self.database:
+        #     self.black_cards = [card for card in self.black_cards
+        #                       if not self.database.is_card_removed(card['text'], 'black')]
+        #     self.white_cards = [card for card in self.white_cards
+        #                       if not self.database.is_card_removed(card['text'], 'white')]
 
-        logger.info(f"Loaded {len(self.black_cards)} black cards and {len(self.white_cards)} white cards")
+        logger.info(
+            f"Loaded {len(self.black_cards)} black cards and {len(self.white_cards)} white cards"
+        )
         if self.allow_nsfw:
             logger.info("NSFW content is enabled")
         else:
@@ -87,38 +98,46 @@ class CardManager:
         # Filter and return only cards that exist in current deck
         return [card for card in cards if card in valid_texts]
 
-    def add_custom_card(self, card_text: str, card_type: str, added_by_id: int) -> bool:
+    def add_custom_card(self, card_text: str, card_type: str,
+                        added_by_id: int) -> bool:
         """Add a custom card to the database"""
         if not self.database:
             return False
 
-        success = self.database.add_custom_card(card_text, card_type, added_by_id)
+        success = self.database.add_custom_card(card_text, card_type,
+                                                added_by_id)
         if success:
             logger.info(f"Added new custom {card_type} card: {card_text}")
         return success
 
-    def remove_card(self, card_text: str, card_type: str, removed_by_id: int) -> bool:
+    def remove_card(self, card_text: str, card_type: str,
+                    removed_by_id: int) -> bool:
         """Remove a card from the game"""
         if not self.database:
             return False
 
-        success = self.database.remove_card(card_text, card_type, removed_by_id)
+        success = self.database.remove_card(card_text, card_type,
+                                            removed_by_id)
         if success:
             logger.info(f"Removed {card_type} card: {card_text}")
             self._load_cards()  # Reload cards to apply removal
         return success
 
-    def approve_custom_card(self, card_text: str, card_type: str, moderator_id: int) -> bool:
+    def approve_custom_card(self, card_text: str, card_type: str,
+                            moderator_id: int) -> bool:
         """Approve a custom card"""
         if not self.database:
             return False
 
-        success = self.database.approve_custom_card(card_text, card_type, moderator_id)
+        success = self.database.approve_custom_card(card_text, card_type,
+                                                    moderator_id)
         if success:
             logger.info(f"Approved custom {card_type} card: {card_text}")
             self._load_cards()  # Reload cards to include newly approved card
         return success
 
-def create_card_manager(allow_nsfw: bool = False, database=None) -> CardManager:
+
+def create_card_manager(allow_nsfw: bool = False,
+                        database=None) -> CardManager:
     """Factory function to create a CardManager instance"""
     return CardManager(allow_nsfw, database)

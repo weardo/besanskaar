@@ -1,52 +1,372 @@
 {
     "cards": [
         {
-            "text": "What's that smell?",
+            "text": "I always get an extra serving of _ from y panipuriwala.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "I got 99 problems but _____ ain't one.",
+            "text": "Everytime I am out of money I resort to _.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "What's the next Happy Meal® toy?",
+            "text": "Sunny Deol walking away from a burning pile of _.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "Here is the church\nHere is the steeple\nOpen the doors\nAnd there is _____",
+            "text": "Band of _: The hit 90's boy band is back!",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "What did I bring back from Mexico?",
+            "text": "All it took to win over the North-Eastern states was _.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "_____ + _____ = _____",
-            "nsfw": false,
-            "pick": 3
-        },
-        {
-            "text": "What's my secret power?",
+            "text": "What do I use to clean my ass when the water runs out?",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "What's the new fad diet?",
+            "text": "Rekha, wine and _: They all get better with time.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "What ended my last relationship?",
+            "text": "The British Raj was terrified of _.",
             "nsfw": false,
             "pick": 1
         },
         {
-            "text": "Why can't I sleep at night?",
+            "text": "One of the largest contributors of our GDP is _. Who knew!",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I'm a strong, independent woman and I don't need _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I was pleasantly surprised when the government officer asked for _ as bribe.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "_ - one thing all Indians can get behind.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Dear Britain, we will give up _, you give back the Kohinoor.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "My therapist asked me to think of _ every time I am anxious.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Zoya Akhtar is set to direct a film on the everyday struggles of _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The investigating authorities found _ in Osho's closet.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I want to wake up to the smell of _ everyday.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "At the stroke of midnight hour, when the world sleeps, India will awake to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Grooms wanted: Tall, fair and into _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I can tell you from experience that true happiness lies in _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Is it even a college reunion without _?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "My family WhatsApp group is aptly called _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In some families breakfast is incomplete without _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Pushpa, I hate _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Part-time model, full-time _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Call me superstitious, but I stay away from _ on a Tuesday.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What is Hrithik Roshan's secret to bulking up?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "1 out of 10 Indians die every year as a result of _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Heavy showers expected. Stay indoors and indulge in _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Rush to a clinic if you have prolonged fever and feel like _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In today's episode, Tulsi introduces Mihir to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "You know you've found 'the one' when they share your love for _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "_ is the secret of my energy. Our energy!",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Sanghi in the streets, _ in the sheets.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "My skincare routine always starts with _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The CBSE 12th boards topper attributes his success to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "My husband couldn't satisfy me so I moved on to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "A kinky foreplay with me always involves _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Rahul Gandhi: Politics is in _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "As a teen, my go-to username was _4u.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "After every meal, I feel like _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Only a few people know _ played an important part in our Independence.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Surgical strike on _ fails spectacularly as PM himself found guilty.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What did my NRI uncle get me from the Duty Free?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I hate Mumbai, it stinks of _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In the event of a crisis in the country, we always blame it on _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What helped me get over a case of late night munchies?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "We all know a Karthik from Bangalore who is addicted to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "_ keeps every desi father up at night.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The first year of my college was entirely devoted to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In some parts of UP, _ is considered a status symbol.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I have masturbated to _. Not my Proudest moment.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Instead of engineering degrees, students are now inclining towards _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The first rule of _ is that you never stop talking about it.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What does Sharmaji's son excel in?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Ab ki baar, _ sarkaar!",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "You should know my father is _. Don't mess with me.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What will daddy get me for my 30th birthday?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "All you need to start a business in India is a knock-off idea and _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Turns out, _ will help in easing indigestion.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The airport authorities grilled me for hours about _ up my ass.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "These days you don't need much. _ works perfectly fine as dowry.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Three rules I live by: Don't lie, don't cheat and don't give in to _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The only reason I do drugs is to escape _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "A Brief History of _ is a national bestseller.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What makes my grandmother's achaar special?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "The tribals in Orissa are reportedly afraid of _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "You know you are privileged if you can afford _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Knowledge about all the positive effects of _ are now lost in time.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In India, _ would probably get you arrested for sedition.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "In the Vedas, there is ample proof that Indians invented _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "A monsoon favorite: chai, _ and _.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Name a more iconic duo: _ and _. I'll wait.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "No date with me is complete without _ and _.",
             "nsfw": false,
             "pick": 1
         }
