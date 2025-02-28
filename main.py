@@ -48,8 +48,33 @@ async def on_ready():
     logger.info("Bot is ready to play Cards Against Humanity!")
     logger.info("Use '.cah s' to start a new game or '.cah r' to see all commands")
 
+@bot.command(name='config', help='Configure game settings')
+async def configure_game(ctx, setting: str, value: str):
+    """Configure game settings like NSFW content"""
+    if setting.lower() != "nsfw":
+        await ctx.send("Available settings: 'nsfw' (values: on/off)")
+        return
+
+    value = value.lower()
+    if value not in ['on', 'off']:
+        await ctx.send("Please use 'on' or 'off' as the value")
+        return
+
+    channel_id = ctx.channel.id
+    game = game_manager.get_game(channel_id)
+
+    if not game:
+        await ctx.send("No active game. Start a new game first with `.cah s`")
+        return
+
+    # Update NSFW setting
+    allow_nsfw = (value == 'on')
+    game_manager.create_game(channel_id, allow_nsfw)
+    status = "enabled" if allow_nsfw else "disabled"
+    await ctx.send(f"NSFW content {status} for the current game")
+
 @bot.command(name='s', help='Start a new game')
-async def start_game(ctx):
+async def start_game(ctx, *args):
     """Start a new game of Cards Against Humanity"""
     if not ctx.author.voice:
         await ctx.send("You need to be in a voice channel to start a game!")
@@ -59,8 +84,14 @@ async def start_game(ctx):
         await ctx.send("A game is already in progress!")
         return
 
-    game_manager.create_game(ctx.channel.id)
-    await ctx.send("New game started! Players in the voice channel can join using `.cah j`")
+    # Check for NSFW flag
+    allow_nsfw = False
+    if len(args) > 0 and args[0].lower() == "nsfw":
+        allow_nsfw = True
+
+    game_manager.create_game(ctx.channel.id, allow_nsfw)
+    nsfw_status = "NSFW content enabled" if allow_nsfw else "NSFW content disabled"
+    await ctx.send(f"New game started! {nsfw_status}\nPlayers in the voice channel can join using `.cah j`")
     db.log_game_start(ctx.channel.id, ctx.author.id)
 
 @bot.command(name='j', help='Join the current game')
@@ -119,8 +150,25 @@ async def play_card(ctx, card_number: int):
             await ctx.send("No game is currently active!")
             return
 
-        success = game.play_card(ctx.author.id, card_number - 1)
-        if success:
+        result = game.play_card(ctx.author.id, card_number - 1)
+        if result == "all_played":
+            await ctx.send(f"{ctx.author.name} has played their card!")
+            db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
+
+            # Get prompt drawer and send them a DM with played cards
+            prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
+            played_cards = game.get_played_cards()
+            cards_text = "\n".join([f"{i+1}. {card_info['card']} (played by {card_info['player_name']})"
+                                  for i, (_, card_info) in enumerate(played_cards.items())])
+
+            dm_text = (
+                "**All players have played their cards!**\n\n"
+                f"**Played Cards**:\n{cards_text}\n\n"
+                "Use `.cah win <number>` to choose the winning card!"
+            )
+            await prompt_drawer.send(dm_text)
+
+        elif result:
             await ctx.send(f"{ctx.author.name} has played their card!")
             db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
         else:
@@ -256,17 +304,18 @@ async def show_rules(ctx):
 
 **How to Play:**
 1. Join a voice channel
-2. Use `.cah s` to start a new game
+2. Use `.cah s` to start a new game (add 'nsfw' to enable NSFW content)
 3. Others in the voice channel use `.cah j` to join
 4. Each round:
    - One player uses `.cah p` to draw a black card
    - Other players use `.cah d` to get their white cards (via DM)
    - Players play cards with `.cah play <number>`
-   - Prompt drawer uses `.cah show` to see cards
+   - Prompt drawer gets cards in DM when all have played
    - Prompt drawer picks winner with `.cah win <number>`
 
 **Commands:**
 `.cah s` - Start game
+`.cah s nsfw` - Start game with NSFW content
 `.cah j` - Join game
 `.cah p` - Draw black card prompt
 `.cah d` - Draw white cards
@@ -274,6 +323,7 @@ async def show_rules(ctx):
 `.cah show` - Show played cards
 `.cah win <number>` - Select winner
 `.cah score` - Show scores
+`.cah config nsfw on/off` - Toggle NSFW content
 `.cah end` - End game
 `.cah r` - Show this help
     """

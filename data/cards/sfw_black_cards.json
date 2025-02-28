@@ -1,0 +1,54 @@
+{
+    "cards": [
+        {
+            "text": "What's that smell?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "I got 99 problems but _____ ain't one.",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What's the next Happy Meal® toy?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Here is the church\nHere is the steeple\nOpen the doors\nAnd there is _____",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What did I bring back from Mexico?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "_____ + _____ = _____",
+            "nsfw": false,
+            "pick": 3
+        },
+        {
+            "text": "What's my secret power?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What's the new fad diet?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "What ended my last relationship?",
+            "nsfw": false,
+            "pick": 1
+        },
+        {
+            "text": "Why can't I sleep at night?",
+            "nsfw": false,
+            "pick": 1
+        }
+    ]
+}

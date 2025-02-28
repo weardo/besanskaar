@@ -1,22 +1,26 @@
 import random
 import logging
-from cards import load_black_cards, load_white_cards
+from cards import create_card_manager
+from typing import Dict, Optional, List
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-
 class Game:
-    def __init__(self):
+    def __init__(self, allow_nsfw: bool = False):
         self.players = {}  # player_id: {name, cards, score}
-        self.black_cards = load_black_cards()
-        self.white_cards = load_white_cards()
+        self.card_manager = create_card_manager(allow_nsfw)
+        self.black_cards = self.card_manager.get_black_cards()
+        self.white_cards = self.card_manager.get_white_cards()
         self.current_black_card = None
         self.played_cards = {}  # player_id: card
         self.round_in_progress = False
-        self.current_prompt_drawer = None  # Track who's drawing the prompt
-        self.player_order = []  # List to track player order for turns
+        self.current_prompt_drawer = None
+        self.player_order = []
+        self.allow_nsfw = allow_nsfw
         logger.debug(f"Game initialized with {len(self.black_cards)} black cards and {len(self.white_cards)} white cards")
+        if allow_nsfw:
+            logger.debug("NSFW content enabled")
 
     def add_player(self, player_id, player_name):
         if player_id not in self.players:
@@ -41,7 +45,7 @@ class Game:
                 return None  # No more cards to draw
             card = random.choice(self.white_cards)
             self.white_cards.remove(card)
-            player['cards'].append(card)
+            player['cards'].append(card['text'])
 
         return player['cards']
 
@@ -59,6 +63,13 @@ class Game:
 
         card = player['cards'].pop(card_index)
         self.played_cards[player_id] = card
+
+        # Check if all players (except prompt drawer) have played
+        active_players = len(self.players) - 1  # Exclude prompt drawer
+        if len(self.played_cards) == active_players:
+            logger.info("All players have played their cards")
+            return "all_played"
+
         return True
 
     def start_round(self):
@@ -71,9 +82,9 @@ class Game:
         self.played_cards = {}
         self.round_in_progress = True
 
-        logger.debug(f"Drew black card: {self.current_black_card}")
+        logger.debug(f"Drew black card: {self.current_black_card['text']}")
         logger.debug(f"Remaining black cards: {len(self.black_cards)}")
-        return self.current_black_card
+        return self.current_black_card['text']
 
     def select_winner(self, winning_player_id):
         """Select the winning card and award points"""
@@ -129,13 +140,13 @@ class Game:
                 }
         return None
 
-
 class GameManager:
     def __init__(self):
         self.games = {}  # channel_id: Game
 
-    def create_game(self, channel_id):
-        self.games[channel_id] = Game()
+    def create_game(self, channel_id, allow_nsfw: bool = False):
+        """Create a new game with NSFW setting"""
+        self.games[channel_id] = Game(allow_nsfw)
 
     def get_game(self, channel_id):
         return self.games.get(channel_id)
