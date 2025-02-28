@@ -133,11 +133,20 @@ async def join_game(ctx):
 @bot.command(name='d', help='Draw white cards')
 async def draw_cards(ctx):
     """Draw your hand of white cards"""
-    if not ctx.author.voice:
-        await ctx.send("You need to stay in the voice channel to play!")
-        return
-
-    game = game_manager.get_game(ctx.channel.id)
+    # Find the relevant game if command was sent in DM
+    game = None
+    if isinstance(ctx.channel, discord.DMChannel):
+        for channel_id, g in game_manager.games.items():
+            if ctx.author.id in g.players:
+                game = g
+                break
+    else:
+        # Voice check only if in a server channel
+        if not ctx.author.voice:
+            await ctx.send("You need to stay in the voice channel to play!")
+            return
+        game = game_manager.get_game(ctx.channel.id)
+        
     if not game:
         await ctx.send("No game is currently active!")
         return
@@ -146,7 +155,10 @@ async def draw_cards(ctx):
     if cards:
         cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
         await ctx.author.send(f"Your cards:\n{cards_text}")
-        await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
+        
+        # If in a server channel, also send confirmation there
+        if not isinstance(ctx.channel, discord.DMChannel):
+            await ctx.send(f"Cards have been sent to {ctx.author.name} via DM!")
     else:
         await ctx.send("You're not in the game or already have cards!")
 
@@ -388,23 +400,41 @@ async def draw_prompt(ctx):
     """Draw a black prompt card for the current round"""
     logger.debug(f"Prompt command requested by {ctx.author.name}")
 
-    if not ctx.author.voice:
-        logger.debug(f"User {ctx.author.name} not in voice channel")
-        await ctx.send("You need to be in a voice channel to play!")
-        return
+    # Find the relevant game if command was sent in DM
+    game = None
+    channel_id = None
+    if isinstance(ctx.channel, discord.DMChannel):
+        for c_id, g in game_manager.games.items():
+            if ctx.author.id in g.players:
+                game = g
+                channel_id = c_id
+                break
+    else:
+        # Voice check only if in a server channel
+        if not ctx.author.voice:
+            logger.debug(f"User {ctx.author.name} not in voice channel")
+            await ctx.send("You need to be in a voice channel to play!")
+            return
+        game = game_manager.get_game(ctx.channel.id)
+        channel_id = ctx.channel.id
 
-    game = game_manager.get_game(ctx.channel.id)
     if not game:
-        logger.debug(f"No active game in channel {ctx.channel.name}")
         await ctx.send("No game is currently active!")
         return
 
     black_card = game.start_round()
     if black_card:
-        logger.info(f"Drew black card in channel {ctx.channel.name}: {black_card}")
+        logger.info(f"Drew black card: {black_card}")
+        
+        # Send to the game channel if command was in DM
+        if isinstance(ctx.channel, discord.DMChannel) and channel_id:
+            game_channel = bot.get_channel(channel_id)
+            if game_channel:
+                await game_channel.send(f"📜 **Black Card**: {black_card}")
+        
         await ctx.send(f"📜 **Black Card**: {black_card}")
     else:
-        logger.warning(f"No black cards available in channel {ctx.channel.name}")
+        logger.warning("No black cards available")
         await ctx.send("No more black cards available!")
 
 
@@ -482,7 +512,10 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_command(ctx):
     """Log successful command usage"""
-    logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in channel {ctx.channel.name}")
+    if isinstance(ctx.channel, discord.DMChannel):
+        logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in DM")
+    else:
+        logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in channel {ctx.channel.name}")
 
 # Get Discord token and run bot
 token = os.getenv('DISCORD_TOKEN')
