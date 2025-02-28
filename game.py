@@ -278,13 +278,30 @@ class Game:
         self.round_in_progress = False
         return True
 
-    def get_played_cards(self, include_players: bool = False):
-        """Get all played cards for selection"""
-        if include_players:
+    def get_played_cards(self, include_players: bool = False, include_custom: bool = False):
+        """Get all played cards for selection
+        
+        Args:
+            include_players: Add player info for each card
+            include_custom: Add flag for custom answers
+        """
+        if include_players and include_custom:
+            # Include both player info and custom flag
+            return {player_id: {
+                'card': card,
+                'player_name': self.players[player_id]['name'],
+                'is_custom': player_id in self.custom_answers
+            } for player_id, card in self.played_cards.items()}
+        elif include_players:
+            # Include just player info
             return {player_id: {
                 'card': card,
                 'player_name': self.players[player_id]['name']
             } for player_id, card in self.played_cards.items()}
+        elif include_custom:
+            # Include just custom flag
+            return [{'text': card, 'is_custom': player_id in self.custom_answers} 
+                  for player_id, card in self.played_cards.items()]
         else:
             # Return only cards without player names for suspense
             return list(self.played_cards.values())

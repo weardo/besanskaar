@@ -397,7 +397,7 @@ async def show_rules(ctx):
 `.cah j` - Join game
 `.cah p` - Draw black card prompt
 `.cah play <number>` - Play a card
-`.cah custom <answer>` - Submit a custom answer
+`.cah custom <answer>` - Submit your own custom answer
 `.cah win <number>` - Select winner
 `.cah score` - Show scores
 `.cah config nsfw on/off` - Toggle NSFW content
@@ -406,10 +406,13 @@ async def show_rules(ctx):
 `.cah exit` - Exit game
 
 **Custom Card Management:**
-`.cah save <white/black> <text>` - Save a custom card
+`.cah save <white/black> <text>` - Save a custom card to the game database
 `.cah list [white/black]` - List custom cards (Mod only)
-`.cah approve <white/black> <text>` - Approve custom card (Mod only)
-`.cah remove <white/black> <text>` - Remove card from game (Mod only)
+`.cah approve <white/black> <text>` - Approve custom card for permanent use (Mod only)
+`.cah remove <white/black> <text>` - Remove inappropriate cards from game (Mod only)
+
+*Note: Custom answers (using `.cah custom`) are marked with ✏️ when displayed to the prompt drawer.*
+*Custom cards (using `.cah save`) are saved to the database and can be drawn by players in future games.*
 
 *Note: All players automatically play through DMs for a better experience!*
     """
@@ -596,8 +599,15 @@ async def play_custom_answer(ctx, *, answer: str):
 
             # Get prompt drawer and send them a DM with played cards/answers
             prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
-            played_cards = game.get_played_cards()  # Don't include player names for suspense
-            cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(played_cards)])
+            played_cards = game.get_played_cards(include_custom=True)  # Include custom flag but not player names
+            
+            # Format cards, marking custom answers with a ✏️ emoji
+            cards_text = []
+            for i, card_info in enumerate(played_cards):
+                prefix = "✏️ " if card_info.get('is_custom', False) else ""
+                cards_text.append(f"{i+1}. {prefix}{card_info['text']}")
+            
+            cards_text = "\n".join(cards_text)
 
             dm_text = (
                 f"**Current Black Card**: {game.current_black_card['text']}\n\n"
