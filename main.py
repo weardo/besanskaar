@@ -930,6 +930,7 @@ async def select_winner(ctx, card_number: int = None):
                 def create_callback(num):
                     async def select_callback(interaction):
                         ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                        ctx.author = interaction.user  # Set the correct author before passing context
                         await select_winner(ctx, num)
                     return select_callback
 
