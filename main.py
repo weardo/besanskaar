@@ -253,17 +253,28 @@ async def select_winner(ctx, card_number: int):
         if isinstance(card_number, str):
             card_number = int(card_number)
 
-        if not ctx.author.voice:
-            logger.debug(f"User {ctx.author.name} not in voice channel")
-            await ctx.send("You need to be in a voice channel to play!")
-            return
+        # Find the relevant game if command was sent in DM
+        game = None
+        channel_id = None
+        if isinstance(ctx.channel, discord.DMChannel):
+            for c_id, g in game_manager.games.items():
+                if ctx.author.id in g.players:
+                    game = g
+                    channel_id = c_id
+                    break
+        else:
+            # Voice check only if in a server channel
+            if not ctx.author.voice:
+                logger.debug(f"User {ctx.author.name} not in voice channel")
+                await ctx.send("You need to be in a voice channel to play!")
+                return
+            game = game_manager.get_game(ctx.channel.id)
+            channel_id = ctx.channel.id
 
-        game = game_manager.get_game(ctx.channel.id)
         if not game:
-            logger.debug(f"No active game in channel {ctx.channel.name}")
             await ctx.send("No game is currently active!")
             return
-
+            
         if ctx.author.id != game.current_prompt_drawer:
             await ctx.send("Only the current prompt drawer can select the winning card!")
             return
@@ -281,6 +292,15 @@ async def select_winner(ctx, card_number: int):
         if game.select_winner(winning_player_id):
             # First announce the winner
             await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+            
+            # Also announce to the game channel if command was in DM
+            if isinstance(ctx.channel, discord.DMChannel) and channel_id:
+                try:
+                    game_channel = bot.get_channel(channel_id)
+                    if game_channel:
+                        await game_channel.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+                except Exception as e:
+                    logger.error(f"Failed to send winner announcement to game channel: {str(e)}")
 
             # Then reveal all played cards
             cards_text = "\n".join([f"• {info['player_name']}: {info['card']}"
