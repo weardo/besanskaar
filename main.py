@@ -504,6 +504,279 @@ async def show_played_cards(ctx):
     await ctx.send(f"**Played Cards**:\n{cards_text}\n\nUse `.cah win <number>` to choose the winning card!")
 
 @bot.command(name='win', help='Select winning card')
+async def select_winner(ctx, card_number: int = None):
+    """Select the winning card for the round"""
+    try:
+        if isinstance(card_number, str) and card_number is not None:
+            card_number = int(card_number)
+
+        # Find the relevant game if command was sent in DM
+        game = None
+        channel_id = None
+        if isinstance(ctx.channel, discord.DMChannel):
+            for c_id, g in game_manager.games.items():
+                if ctx.author.id in g.players:
+                    game = g
+                    channel_id = c_id
+                    break
+        else:
+            # Voice check only if in a server channel
+            if not ctx.author.voice:
+                logger.debug(f"User {ctx.author.name} not in voice channel")
+                await ctx.send("You need to be in a voice channel to play!")
+                return
+            game = game_manager.get_game(ctx.channel.id)
+            channel_id = ctx.channel.id
+
+        if not game:
+            await ctx.send("No game is currently active!")
+            return
+
+        if ctx.author.id != game.current_prompt_drawer:
+            await ctx.send("Only the current prompt drawer can select the winning card!")
+            return
+
+        played_cards = game.get_played_cards(include_players=True)
+        played_cards_list = list(played_cards.items())
+
+        # If card_number is None, show all cards with buttons to select
+        if card_number is None:
+            if not played_cards_list:
+                await ctx.send("No cards have been played yet!")
+                return
+
+            embed = Embed(
+                title="🎮 Select Winner", 
+                description=f"Select the best answer to: **{game.current_black_card['text']}**", 
+                color=Color.blue()
+            )
+
+            # Show all cards
+            for i, (_, card_info) in enumerate(played_cards_list):
+                prefix = "✏️ " if _ in game.custom_answers else ""
+                embed.add_field(
+                    name=f"Card {i+1}", 
+                    value=f"{prefix}{card_info['card']}", 
+                    inline=False
+                )
+
+            # Create selection buttons
+            view = View(timeout=None)
+
+            # Add buttons for each card (up to 5 per row)
+            for i in range(len(played_cards_list)):
+                select_button = Button(
+                    style=ButtonStyle.green, 
+                    label=f"Select #{i+1}", 
+                    custom_id=f"select_winner_{i+1}"
+                )
+
+                # Factory to capture card number correctly
+                def create_callback(num):
+                    async def select_callback(interaction):
+                        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                        ctx.author = interaction.user
+                        await select_winner(ctx, num)
+                    return select_callback
+
+                select_button.callback = create_callback(i+1)
+                view.add_item(select_button)
+
+            await ctx.send(embed=embed, view=view)
+            return
+
+        # Process the winner selection if card_number is provided
+        if not played_cards_list or card_number < 1 or card_number > len(played_cards_list):
+            logger.debug(f"Invalid card selection: {card_number}, available cards: {len(played_cards_list)}")
+            await ctx.send("Invalid card number!")
+            return
+
+        winning_player_id = played_cards_list[card_number - 1][0]
+        winning_card = played_cards_list[card_number - 1][1]
+
+        if game.select_winner(winning_player_id):
+            # Create winner announcement embed
+            winner_embed = Embed(
+                title="🎉 Round Winner!", 
+                description=f"**{winning_card['player_name']}** wins this round!", 
+                color=Color.gold()
+            )
+
+            # Add the black card and winning answer
+            winner_embed.add_field(
+                name="Black Card", 
+                value=game.current_black_card['text'], 
+                inline=False
+            )
+
+            # Check if it was a custom answer
+            prefix = "✏️ " if winning_player_id in game.custom_answers else ""
+            winner_embed.add_field(
+                name="Winning Answer", 
+                value=f"{prefix}{winning_card['card']}", 
+                inline=False
+            )
+
+            # First announce the winner
+            await ctx.send(embed=winner_embed)
+
+            # Also announce to the game channel if command was in DM
+            if isinstance(ctx.channel, discord.DMChannel) and channel_id:
+                try:
+                    game_channel = bot.get_channel(channel_id)
+                    if game_channel:
+                        await game_channel.send(embed=winner_embed)
+                except Exception as e:
+                    logger.error(f"Failed to send winner announcement to game channel: {str(e)}")
+
+            # Create an embed for all played cards
+            cards_embed = Embed(
+                title="📝 All Played Cards", 
+                description="Here are all the cards that were played this round:", 
+                color=Color.blue()
+            )
+
+            # Add each card as a field
+            for player_id, info in played_cards.items():
+                prefix = "✏️ " if player_id in game.custom_answers else ""
+                cards_embed.add_field(
+                    name=info['player_name'], 
+                    value=f"{prefix}{info['card']}", 
+                    inline=False
+                )
+
+            await ctx.send(embed=cards_embed)
+
+            # Create an embed for scores
+            scores = game.get_scores()
+            scores_embed = Embed(
+                title="🏆 Current Scores", 
+                description="Here are the current standings:", 
+                color=Color.teal()
+            )
+
+            # Add each player's score
+            for player_id, info in scores.items():
+                scores_embed.add_field(
+                    name=info['name'], 
+                    value=f"{info['score']} points", 
+                    inline=True
+                )
+
+            await ctx.send(embed=scores_embed)
+
+            # Announce next prompt drawer with a button
+            next_drawer = game.players[game.current_prompt_drawer]['name']
+            next_drawer_embed = Embed(
+                title="Next Round", 
+                description=f"👉 **{next_drawer}** will draw the next black card!", 
+                color=Color.purple()
+            )
+
+            # Notify in the channel
+            await ctx.send(embed=next_drawer_embed)
+
+            # Send DM to next prompt drawer
+            try:
+                user = await bot.fetch_user(game.current_prompt_drawer)
+                prompt_embed = Embed(
+                    title="🎲 Your Turn!", 
+                    description="It's your turn to draw the next black card!", 
+                    color=Color.purple()
+                )
+
+                # Add button to draw card
+                prompt_view = View(timeout=None)
+                draw_button = Button(style=ButtonStyle.green, label="Draw Black Card", custom_id="draw_black_card")
+
+                async def draw_callback(interaction):
+                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                    ctx.author = interaction.user
+                    await draw_prompt(ctx)
+
+                draw_button.callback = draw_callback
+                prompt_view.add_item(draw_button)
+
+                await user.send(embed=prompt_embed, view=prompt_view)
+            except Exception as e:
+                logger.error(f"Failed to notify next prompt drawer {game.current_prompt_drawer}: {str(e)}")
+
+            # Notify players about their topped-up cards via DM
+            for player_id in game.players:
+                if player_id != game.current_prompt_drawer:
+                    try:
+                        user = await bot.fetch_user(player_id)
+                        cards = game.players[player_id]['cards']
+
+                        cards_embed = Embed(
+                            title="🃏 Cards Updated", 
+                            description="Your cards have been topped up:", 
+                            color=Color.gold()
+                        )
+
+                        # Add each card as a field
+                        for i, card in enumerate(cards):
+                            cards_embed.add_field(name=f"Card {i+1}", value=card, inline=False)
+
+                        # Create buttons for playing cards
+                        cards_view = View(timeout=None)
+
+                        # Add buttons to play each card (up to 5 per row)
+                        for i in range(len(cards)):
+                            card_button = Button(
+                                style=ButtonStyle.gray, 
+                                label=f"Play #{i+1}", 
+                                custom_id=f"play_card_{i+1}"
+                            )
+
+                            # This is a factory function to capture the card index correctly
+                            def create_callback(index):
+                                async def play_card_callback(interaction):
+                                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                                    ctx.author = interaction.user
+                                    await play_card(ctx, index)
+                                return play_card_callback
+
+                            card_button.callback = create_callback(i+1)
+                            cards_view.add_item(card_button)
+
+                        # Add a custom answer button
+                        custom_button = Button(style=ButtonStyle.blurple, label="Custom Answer", custom_id="custom_answer")
+
+                        async def custom_callback(interaction):
+                            custom_modal = discord.ui.Modal(title="Your Custom Answer")
+                            custom_text = discord.ui.TextInput(
+                                label="Your answer",
+                                placeholder="Type your funny answer here...",
+                                style=discord.TextStyle.paragraph
+                            )
+                            custom_modal.add_item(custom_text)
+
+                            async def modal_callback(interaction):
+                                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                                ctx.author = interaction.user
+                                await play_custom_answer(ctx, answer=custom_text.value)
+                                await interaction.response.send_message("Custom answer submitted!", ephemeral=True)
+
+                            custom_modal.on_submit = modal_callback
+                            await interaction.response.send_modal(custom_modal)
+
+                        custom_button.callback = custom_callback
+                        cards_view.add_item(custom_button)
+
+                        await user.send(embed=cards_embed, view=cards_view)
+                    except Exception as e:
+                        logger.error(f"Failed to send updated cards to player {player_id}: {str(e)}")
+        else:
+            logger.error(f"Failed to select winner for card {card_number}")
+            await ctx.send("Error selecting winner!")
+    except ValueError:
+        logger.error(f"Invalid card number format: {card_number}")
+        await ctx.send("Please provide a valid card number (e.g., `.cah win 1`)")
+    except Exception as e:
+        logger.error(f"Error in select_winner command: {str(e)}")
+        await ctx.send("An error occurred while selecting the winner. Please try again.")
+
 async def notify_prompt_drawer(user, channel_name=None):
     """Send a reminder to the prompt drawer that it's their turn"""
     # Create an attractive embed
