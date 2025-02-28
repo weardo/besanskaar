@@ -69,9 +69,25 @@ async def configure_game(ctx, setting: str, value: str):
 
     # Update NSFW setting
     allow_nsfw = (value == 'on')
-    game_manager.create_game(channel_id, allow_nsfw)
-    status = "enabled" if allow_nsfw else "disabled"
-    await ctx.send(f"NSFW content {status} for the current game")
+    if game.update_nsfw_setting(allow_nsfw):
+        status = "enabled" if allow_nsfw else "disabled"
+        await ctx.send(f"NSFW content {status} for the current game")
+
+        # Notify players about their updated cards
+        for player_id in game.players:
+            try:
+                user = await bot.fetch_user(player_id)
+                cards = game.players[player_id]['cards']
+                cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
+                await user.send(f"Your cards have been updated due to NSFW setting change:\n{cards_text}")
+            except Exception as e:
+                logger.error(f"Failed to send updated cards to player {player_id}: {str(e)}")
+
+        # If a black card was filtered, notify channel
+        if game.current_black_card is None and game.round_in_progress:
+            await ctx.send("The current black card has been filtered. Please draw a new black card with `.cah p`")
+    else:
+        await ctx.send("NSFW setting is already set to that value")
 
 @bot.command(name='s', help='Start a new game')
 async def start_game(ctx, *args):
@@ -108,6 +124,8 @@ async def join_game(ctx):
     success = game_manager.add_player(ctx.channel.id, ctx.author.id, ctx.author.name)
     if success:
         await ctx.send(f"{ctx.author.name} has joined the game!")
+        # Send initial instructions via DM
+        await ctx.author.send("Welcome to Cards Against Humanity! You'll play the game through DMs.\nUse `.cah d` to draw your cards.")
         db.log_player_join(ctx.channel.id, ctx.author.id)
     else:
         await ctx.send("You're already in the game!")
@@ -134,48 +152,56 @@ async def draw_cards(ctx):
 
 @bot.command(name='play', help='Play a card from your hand')
 async def play_card(ctx, card_number: int):
-    """Play a card from your hand"""
     try:
         if isinstance(card_number, str):
             card_number = int(card_number)
 
-        if not ctx.author.voice:
-            logger.debug(f"User {ctx.author.name} not in voice channel")
-            await ctx.send("You need to stay in the voice channel to play!")
-            return
+        # Find the relevant game
+        game = None
+        if isinstance(ctx.channel, discord.DMChannel):
+            for channel_id, g in game_manager.games.items():
+                if ctx.author.id in g.players:
+                    game = g
+                    break
+        else:
+            game = game_manager.get_game(ctx.channel.id)
 
-        game = game_manager.get_game(ctx.channel.id)
         if not game:
-            logger.debug(f"No active game in channel {ctx.channel.name}")
-            await ctx.send("No game is currently active!")
+            await ctx.send("No active game found!")
             return
 
         result = game.play_card(ctx.author.id, card_number - 1)
         if result == "all_played":
-            await ctx.send(f"{ctx.author.name} has played their card!")
-            db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
+            await send_game_message(ctx, f"{ctx.author.name} has played their card!", game_update=True)
 
             # Get prompt drawer and send them a DM with played cards
             prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
-            played_cards = game.get_played_cards()
-            cards_text = "\n".join([f"{i+1}. {card_info['card']} (played by {card_info['player_name']})"
+            played_cards = game.get_played_cards(include_players=True)  # Get cards with player names
+            cards_text = "\n".join([f"{i+1}. {card_info['card']}"
                                   for i, (_, card_info) in enumerate(played_cards.items())])
 
             dm_text = (
-                "**All players have played their cards!**\n\n"
-                f"**Played Cards**:\n{cards_text}\n\n"
-                "Use `.cah win <number>` to choose the winning card!"
+                f"**Current Black Card**: {game.current_black_card['text']}\n\n"
+                "**All cards have been played! Here are the answers:**\n"
+                f"{cards_text}\n\n"
+                "Read these answers aloud in voice chat and then use `.cah win <number>` to choose the winning card!"
             )
             await prompt_drawer.send(dm_text)
 
+            # Send update to game channel
+            if isinstance(ctx.channel, discord.DMChannel):
+                for channel_id in game_manager.games:
+                    if game == game_manager.get_game(channel_id):
+                        channel = bot.get_channel(channel_id)
+                        if channel:
+                            await channel.send("All players have played their cards! Waiting for the prompt drawer to read the answers and select a winner...")
+
         elif result:
-            await ctx.send(f"{ctx.author.name} has played their card!")
-            db.log_card_play(ctx.channel.id, ctx.author.id, card_number)
+            await send_game_message(ctx, f"{ctx.author.name} has played their card!", game_update=True)
         else:
-            logger.debug(f"Failed to play card {card_number} for user {ctx.author.name}")
             await ctx.send("Invalid card number or it's not your turn!")
+
     except ValueError:
-        logger.error(f"Invalid card number format: {card_number}")
         await ctx.send("Please provide a valid card number (e.g., `.cah play 1`)")
     except Exception as e:
         logger.error(f"Error in play_card command: {str(e)}")
@@ -230,17 +256,24 @@ async def select_winner(ctx, card_number: int):
             await ctx.send("Only the current prompt drawer can select the winning card!")
             return
 
-        played_cards = list(game.get_played_cards().items())
-        if not played_cards or card_number < 1 or card_number > len(played_cards):
-            logger.debug(f"Invalid card selection: {card_number}, available cards: {len(played_cards)}")
+        played_cards = game.get_played_cards(include_players=True)
+        played_cards_list = list(played_cards.items())
+        if not played_cards_list or card_number < 1 or card_number > len(played_cards_list):
+            logger.debug(f"Invalid card selection: {card_number}, available cards: {len(played_cards_list)}")
             await ctx.send("Invalid card number!")
             return
 
-        winning_player_id = played_cards[card_number - 1][0]
-        winning_card = played_cards[card_number - 1][1]
+        winning_player_id = played_cards_list[card_number - 1][0]
+        winning_card = played_cards_list[card_number - 1][1]
 
         if game.select_winner(winning_player_id):
+            # First announce the winner
             await ctx.send(f"🎉 **Winner**: {winning_card['player_name']} with \"{winning_card['card']}\"!")
+
+            # Then reveal all played cards
+            cards_text = "\n".join([f"• {info['player_name']}: {info['card']}"
+                                  for _, info in played_cards.items()])
+            await ctx.send(f"**All Played Cards**:\n{cards_text}")
 
             # Show current scores
             scores = game.get_scores()
@@ -250,6 +283,17 @@ async def select_winner(ctx, card_number: int):
             # Announce next prompt drawer
             next_drawer = game.players[game.current_prompt_drawer]['name']
             await ctx.send(f"\n👉 {next_drawer} will draw the next black card!")
+
+            # Notify players about their topped-up cards via DM
+            for player_id in game.players:
+                if player_id != game.current_prompt_drawer:
+                    try:
+                        user = await bot.fetch_user(player_id)
+                        cards = game.players[player_id]['cards']
+                        cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(cards)])
+                        await user.send(f"Your cards have been topped up:\n{cards_text}")
+                    except Exception as e:
+                        logger.error(f"Failed to send updated cards to player {player_id}: {str(e)}")
         else:
             logger.error(f"Failed to select winner for card {card_number}")
             await ctx.send("Error selecting winner!")
@@ -308,9 +352,11 @@ async def show_rules(ctx):
 3. Others in the voice channel use `.cah j` to join
 4. Each round:
    - One player uses `.cah p` to draw a black card
-   - Other players use `.cah d` to get their white cards (via DM)
-   - Players play cards with `.cah play <number>`
-   - Prompt drawer gets cards in DM when all have played
+   - Other players get their white cards via DM
+   - Players either:
+     • Play a card with `.cah play <number>`
+     • Or submit a custom answer with `.cah custom <your answer>`
+   - Prompt drawer gets answers in DM to read aloud and select winner
    - Prompt drawer picks winner with `.cah win <number>`
 
 **Commands:**
@@ -318,14 +364,22 @@ async def show_rules(ctx):
 `.cah s nsfw` - Start game with NSFW content
 `.cah j` - Join game
 `.cah p` - Draw black card prompt
-`.cah d` - Draw white cards
 `.cah play <number>` - Play a card
-`.cah show` - Show played cards
+`.cah custom <answer>` - Submit a custom answer
 `.cah win <number>` - Select winner
 `.cah score` - Show scores
 `.cah config nsfw on/off` - Toggle NSFW content
 `.cah end` - End game
 `.cah r` - Show this help
+`.cah exit` - Exit game
+
+**Custom Card Management:**
+`.cah save <white/black> <text>` - Save a custom card
+`.cah list [white/black]` - List custom cards (Mod only)
+`.cah approve <white/black> <text>` - Approve custom card (Mod only)
+`.cah remove <white/black> <text>` - Remove card from game (Mod only)
+
+*Note: All players automatically play through DMs for a better experience!*
     """
     await ctx.send(rules_text)
 
@@ -353,11 +407,61 @@ async def draw_prompt(ctx):
         logger.warning(f"No black cards available in channel {ctx.channel.name}")
         await ctx.send("No more black cards available!")
 
-# Get Discord token and run bot
-token = os.getenv('DISCORD_TOKEN')
-if not token:
-    logger.error("No Discord token found!")
-    raise ValueError("Please set the DISCORD_TOKEN environment variable")
+
+@bot.command(name='exit', help='Exit the current game')
+async def exit_game(ctx):
+    """Exit the current game"""
+    # Check all channels where the player might be in a game
+    for channel_id, game in game_manager.games.items():
+        if ctx.author.id in game.players:
+            # Remove player from game
+            if game.remove_player(ctx.author.id):
+                # If command was sent in DM, notify the game channel
+                if isinstance(ctx.channel, discord.DMChannel):
+                    channel = bot.get_channel(channel_id)
+                    if channel:
+                        await channel.send(f"{ctx.author.name} has left the game!")
+                await ctx.send("You've left the game!")
+                return
+
+    await ctx.send("You're not in any active games!")
+
+
+async def send_game_message(ctx, content, game_update=False):
+    """Send message to appropriate channel(s)"""
+    if isinstance(ctx.channel, discord.DMChannel):
+        # Find the game channel
+        for channel_id, game in game_manager.games.items():
+            if ctx.author.id in game.players:
+                if game_update:
+                    # Send game updates to main channel
+                    channel = bot.get_channel(channel_id)
+                    if channel:
+                        await channel.send(content)
+                await ctx.send(content)
+                return
+    else:
+        await ctx.send(content)
+
+@bot.event
+async def on_message(message):
+    """Handle commands in DMs"""
+    # Don't respond to bot messages
+    if message.author == bot.user:
+        return
+
+    # Check if message is a DM
+    if isinstance(message.channel, discord.DMChannel):
+        # Find if player is in any active games
+        for channel_id, game in game_manager.games.items():
+            if message.author.id in game.players:
+                # Process the command - DM mode is now default
+                ctx = await bot.get_context(message)
+                await bot.invoke(ctx)
+                return
+
+    # Process regular commands
+    await bot.process_commands(message)
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -380,4 +484,137 @@ async def on_command(ctx):
     """Log successful command usage"""
     logger.info(f"Command {ctx.command.name} used by {ctx.author.name} in channel {ctx.channel.name}")
 
+# Get Discord token and run bot
+token = os.getenv('DISCORD_TOKEN')
+if not token:
+    logger.error("No Discord token found!")
+    raise ValueError("Please set the DISCORD_TOKEN environment variable")
+
 bot.run(token)
+
+@bot.command(name='custom', help='Play a custom answer instead of a card')
+async def play_custom_answer(ctx, *, answer: str):
+    """Play a custom answer instead of using a card from your hand"""
+    try:
+        # Find the relevant game
+        game = None
+        if isinstance(ctx.channel, discord.DMChannel):
+            for channel_id, g in game_manager.games.items():
+                if ctx.author.id in g.players:
+                    game = g
+                    break
+        else:
+            game = game_manager.get_game(ctx.channel.id)
+
+        if not game:
+            await ctx.send("No active game found!")
+            return
+
+        result = game.play_custom_answer(ctx.author.id, answer)
+        if result == "all_played":
+            await send_game_message(ctx, f"{ctx.author.name} has played their answer!", game_update=True)
+
+            # Get prompt drawer and send them a DM with played cards/answers
+            prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
+            played_cards = game.get_played_cards()  # Don't include player names for suspense
+            cards_text = "\n".join([f"{i+1}. {card}" for i, card in enumerate(played_cards)])
+
+            dm_text = (
+                f"**Current Black Card**: {game.current_black_card['text']}\n\n"
+                "**All answers have been submitted! Here they are:**\n"
+                f"{cards_text}\n\n"
+                "Read these answers aloud in voice chat and then use `.cah win <number>` to choose the winning answer!"
+            )
+            await prompt_drawer.send(dm_text)
+
+            # Send update to game channel
+            if isinstance(ctx.channel, discord.DMChannel):
+                for channel_id in game_manager.games:
+                    if game == game_manager.get_game(channel_id):
+                        channel = bot.get_channel(channel_id)
+                        if channel:
+                            await channel.send("All players have submitted their answers! Waiting for the prompt drawer to read them and select a winner...")
+
+        elif result:
+            await send_game_message(ctx, f"{ctx.author.name} has played their answer!", game_update=True)
+        else:
+            await ctx.send("You can't play right now!")
+
+    except Exception as e:
+        logger.error(f"Error in play_custom_answer command: {str(e)}")
+        await ctx.send("An error occurred while submitting your answer. Please try again.")
+
+@bot.command(name='save', help='Save a custom answer to the game')
+async def save_custom_answer(ctx, card_type: str, *, card_text: str):
+    """Save a custom answer to be used in future games"""
+    if card_type.lower() not in ['white', 'black']:
+        await ctx.send("Please specify either 'white' or 'black' as the card type!")
+        return
+
+    game = game_manager.get_game(ctx.channel.id)
+    if not game:
+        await ctx.send("No active game found!")
+        return
+
+    if game.add_custom_card(card_text, card_type.lower(), ctx.author.id):
+        await ctx.send(f"Custom {card_type} card saved! It will be available after moderator approval.")
+    else:
+        await ctx.send("Failed to save custom card. It might already exist.")
+
+@bot.command(name='approve', help='Approve a custom card (Moderators only)')
+@commands.has_permissions(manage_messages=True)
+async def approve_card(ctx, card_type: str, *, card_text: str):
+    """Approve a custom card for use in games"""
+    if card_type.lower() not in ['white', 'black']:
+        await ctx.send("Please specify either 'white' or 'black' as the card type!")
+        return
+
+    game = game_manager.get_game(ctx.channel.id)
+    if not game:
+        # Create temporary game instance for card management
+        game_manager.create_game(ctx.channel.id)
+        game = game_manager.get_game(ctx.channel.id)
+
+    if game.approve_custom_card(card_text, card_type.lower(), ctx.author.id):
+        await ctx.send(f"Custom {card_type} card approved! It will now appear in games.")
+    else:
+        await ctx.send("Failed to approve card. It might not exist or is already approved.")
+
+@bot.command(name='remove', help='Remove a card from the game (Moderators only)')
+@commands.has_permissions(manage_messages=True)
+async def remove_card(ctx, card_type: str, *, card_text: str):
+    """Remove a card from the game"""
+    if card_type.lower() not in ['white', 'black']:
+        await ctx.send("Please specify either 'white' or 'black' as the card type!")
+        return
+
+    game = game_manager.get_game(ctx.channel.id)
+    if not game:
+        # Create temporary game instance for card management
+        game_manager.create_game(ctx.channel.id)
+        game = game_manager.get_game(ctx.channel.id)
+
+    if game.remove_card(card_text, card_type.lower(), ctx.author.id):
+        await ctx.send(f"{card_type.capitalize()} card removed from the game.")
+    else:
+        await ctx.send("Failed to remove card. It might not exist or is already removed.")
+
+@bot.command(name='list', help='List custom cards (Moderators only)')
+@commands.has_permissions(manage_messages=True)
+async def list_custom_cards(ctx, card_type: str = None, show_all: bool = False):
+    """List custom cards"""
+    if card_type and card_type.lower() not in ['white', 'black']:
+        await ctx.send("Please specify either 'white' or 'black' as the card type!")
+        return
+
+    types = ['white', 'black'] if not card_type else [card_type.lower()]
+    for t in types:
+        custom_cards = db.get_custom_cards(t, only_approved=not show_all)
+        if custom_cards:
+            cards_text = "\n".join([f"• {card}" for card in custom_cards])
+            title = f"Custom {t.capitalize()} Cards"
+            if show_all:
+                title += " (Including Unapproved)"
+            await ctx.send(f"**{title}**:\n{cards_text}")
+        else:
+            await ctx.send(f"No custom {t} cards found.")
