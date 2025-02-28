@@ -397,7 +397,7 @@ async def show_rules(ctx):
 `.cah j` - Join game
 `.cah p` - Draw black card prompt
 `.cah play <number>` - Play a card
-`.cah custom <answer>` - Submit your own custom answer
+`.cah custom <answer>` - Submit your own custom answer (Example: `.cah custom A really funny answer`)
 `.cah win <number>` - Select winner
 `.cah score` - Show scores
 `.cah config nsfw on/off` - Toggle NSFW content
@@ -530,15 +530,23 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Check if message is a DM
+    # Check if message is a DM and starts with the command prefix
     if isinstance(message.channel, discord.DMChannel):
-        # Find if player is in any active games
-        for channel_id, game in game_manager.games.items():
-            if message.author.id in game.players:
-                # Process the command - DM mode is now default
-                ctx = await bot.get_context(message)
-                await bot.invoke(ctx)
-                return
+        # Make sure we only process commands with the correct prefix
+        if message.content.startswith(('.cah ', '!cah ')):
+            # Find if player is in any active games
+            for channel_id, game in game_manager.games.items():
+                if message.author.id in game.players:
+                    # Process the command
+                    ctx = await bot.get_context(message)
+                    if ctx.command is None:
+                        # Log the invalid command attempt
+                        command_name = message.content.split(' ')[1] if len(message.content.split(' ')) > 1 else 'unknown'
+                        logger.warning(f"Invalid command in DM: {command_name} by {message.author.name}")
+                        await message.channel.send(f"Command not found. Use `.cah r` to see all available commands.")
+                    else:
+                        await bot.invoke(ctx)
+                    return
 
     # Process regular commands
     await bot.process_commands(message)
@@ -575,7 +583,7 @@ if not token:
 
 bot.run(token)
 
-@bot.command(name='custom', help='Play a custom answer instead of a card')
+@bot.command(name='custom', aliases=['c'], help='Play a custom answer instead of a card')
 async def play_custom_answer(ctx, *, answer: str):
     """Play a custom answer instead of using a card from your hand"""
     try:
