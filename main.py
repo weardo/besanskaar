@@ -406,16 +406,47 @@ async def play_card(ctx, card_number: int):
             # Get prompt drawer and send them a DM with played cards
             prompt_drawer = await bot.fetch_user(game.current_prompt_drawer)
             played_cards = game.get_played_cards(include_players=True)  # Get cards with player names
-            cards_text = "\n".join([f"{i+1}. {card_info['card']}"
-                                  for i, (_, card_info) in enumerate(played_cards.items())])
 
-            dm_text = (
-                f"**Current Black Card**: {game.current_black_card['text']}\n\n"
-                "**All cards have been played! Here are the answers:**\n"
-                f"{cards_text}\n\n"
-                "Read these answers aloud in voice chat and then use `.cah win <number>` to choose the winning card!"
+            # Create an embed for the results
+            embed = Embed(
+                title="🎮 All Cards Played!", 
+                description=f"All players have submitted their answers to: **{game.current_black_card['text']}**", 
+                color=Color.blue()
             )
-            await prompt_drawer.send(dm_text)
+
+            # Add each card as a field
+            for i, (player_id, card_info) in enumerate(played_cards.items()):
+                prefix = "✏️ " if player_id in game.custom_answers else ""
+                embed.add_field(
+                    name=f"Card {i+1}", 
+                    value=f"{prefix}{card_info['card']}", 
+                    inline=False
+                )
+
+            embed.add_field(
+                name="Instructions", 
+                value="Read these answers aloud in voice chat, then select the winner using the button below.", 
+                inline=False
+            )
+
+            # Create a view with select winner button
+            view = View(timeout=None)
+            select_button = Button(
+                style=ButtonStyle.green, 
+                label="Select Winner", 
+                emoji="🏆", 
+                custom_id="select_winner"
+            )
+
+            async def select_winner_callback(interaction):
+                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                ctx.author = interaction.user
+                await select_winner(ctx)
+
+            select_button.callback = select_winner_callback
+            view.add_item(select_button)
+
+            await prompt_drawer.send(embed=embed, view=view)
 
             # Send update to game channel
             if isinstance(ctx.channel, discord.DMChannel):
@@ -502,6 +533,23 @@ async def notify_prompt_drawer(user, channel_name=None):
 
     draw_button.callback = draw_callback
     view.add_item(draw_button)
+
+    # Add a button to view played cards
+    view_cards_button = Button(
+        style=ButtonStyle.blurple,
+        label="View Played Cards",
+        emoji="👀",
+        custom_id="view_played_cards"
+    )
+
+    async def view_cards_callback(interaction):
+        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+        ctx.author = interaction.user
+        await show_played_cards(ctx)
+
+    view_cards_button.callback = view_cards_callback
+    view.add_item(view_cards_button)
+
 
     await user.send(embed=embed, view=view)
     logger.info(f"Sent prompt drawer notification to {user.name}")
