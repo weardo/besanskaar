@@ -181,7 +181,16 @@ async def join_game(ctx):
         draw_button = Button(style=ButtonStyle.green, label="Draw Cards", custom_id="draw_cards")
 
         async def draw_callback(interaction):
-            await draw_cards(await bot.get_context(interaction.message, cls=commands.Context))
+            try:
+                # Create a proper context with the right user and channel info
+                ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                ctx.author = interaction.user  # Set correct author for user check
+                
+                # Call the draw_cards function with the properly set context
+                await draw_cards(ctx)
+            except Exception as e:
+                logger.error(f"Error in draw cards button: {str(e)}")
+                await interaction.response.send_message("An error occurred. Please try typing `.cah d` instead.", ephemeral=True)
 
         draw_button.callback = draw_callback
         dm_view.add_item(draw_button)
@@ -197,23 +206,41 @@ async def draw_cards(ctx):
     # Find the relevant game if command was sent in DM
     game = None
     if isinstance(ctx.channel, discord.DMChannel):
+        # Check all games to find one where the player is registered
+        player_found = False
         for channel_id, g in game_manager.games.items():
             if ctx.author.id in g.players:
                 game = g
+                player_found = True
                 break
+        
+        if not player_found:
+            await ctx.send("You're not currently in any active game! Join a game first with `.cah j` in a server channel.")
+            return
     else:
         # Voice check only if in a server channel
         if not ctx.author.voice:
             await ctx.send("You need to stay in the voice channel to play!")
             return
+        
+        # Check if game exists in this channel
         game = game_manager.get_game(ctx.channel.id)
+        if not game:
+            await ctx.send("No game is currently active in this channel! Start one with `.cah s`")
+            return
+            
+        # Check if player is in the game
+        if ctx.author.id not in game.players:
+            await ctx.send("You're not in this game! Join first with `.cah j`")
+            return
 
-    if not game:
-        await ctx.send("No game is currently active!")
-        return
-
-    cards = game.draw_cards(ctx.author.id)
-    if cards:
+    # At this point we have verified the game exists and player is part of it
+    try:
+        cards = game.draw_cards(ctx.author.id)
+        if not cards:
+            await ctx.send("You already have a full hand of cards!")
+            return
+            
         # Create a fancy card display
         embed = Embed(
             title="🃏 Your Cards", 
@@ -239,8 +266,13 @@ async def draw_cards(ctx):
             # This is a factory function to capture the card index correctly
             def create_callback(index):
                 async def play_card_callback(interaction):
-                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
-                    await play_card(ctx, index)
+                    try:
+                        ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                        ctx.author = interaction.user  # Ensure author is set correctly
+                        await play_card(ctx, index)
+                    except Exception as e:
+                        logger.error(f"Error in play card button: {str(e)}")
+                        await interaction.response.send_message("An error occurred. Please try typing `.cah play {index}` instead.", ephemeral=True)
                 return play_card_callback
 
             card_button.callback = create_callback(i+1)
@@ -259,9 +291,14 @@ async def draw_cards(ctx):
             custom_modal.add_item(custom_text)
 
             async def modal_callback(interaction):
-                ctx = await bot.get_context(interaction.message, cls=commands.Context)
-                await play_custom_answer(ctx, answer=custom_text.value)
-                await interaction.response.send_message("Custom answer submitted!", ephemeral=True)
+                try:
+                    ctx = await bot.get_context(interaction.message, cls=commands.Context)
+                    ctx.author = interaction.user  # Ensure author is set correctly
+                    await play_custom_answer(ctx, answer=custom_text.value)
+                    await interaction.response.send_message("Custom answer submitted!", ephemeral=True)
+                except Exception as e:
+                    logger.error(f"Error in custom answer modal: {str(e)}")
+                    await interaction.response.send_message("An error occurred. Please try typing `.cah c Your answer` instead.", ephemeral=True)
 
             custom_modal.on_submit = modal_callback
             await interaction.response.send_modal(custom_modal)
@@ -279,8 +316,9 @@ async def draw_cards(ctx):
                 color=Color.green()
             )
             await ctx.send(embed=confirm_embed)
-    else:
-        await ctx.send("You're not in the game or already have cards!")
+    except Exception as e:
+        logger.error(f"Error drawing cards: {str(e)}")
+        await ctx.send(f"An error occurred while drawing cards: {str(e)}")
 
 @bot.command(name='play', help='Play a card from your hand')
 async def play_card(ctx, card_number: int):
